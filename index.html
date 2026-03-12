@@ -226,17 +226,33 @@
   .btn-add-group:hover { border-color:var(--amber); color:var(--amber); }
 
   .empty-state .emoji{font-size:40px;margin-bottom:12px;}
+
+  /* Lang toggle pill */
+  .lang-pill{display:flex;align-items:center;background:var(--surface2);border:1px solid var(--border);border-radius:20px;padding:2px;gap:0;cursor:pointer;user-select:none;}
+  .lang-pill span{font-size:11px;font-weight:700;padding:4px 10px;border-radius:16px;transition:all 0.2s;color:var(--text-muted);}
+  .lang-pill span.active{background:var(--amber);color:#000;}
+
+  /* Nicole cat picker in settings */
+  .nicole-cat-row{display:flex;align-items:center;justify-content:space-between;padding:8px 14px;margin:0 8px 3px;background:var(--surface);border-radius:10px;border:1px solid var(--border);font-size:13px;}
+  .nicole-cat-row .toggle-check{width:20px;height:20px;border-radius:6px;border:2px solid var(--border);background:var(--surface2);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:13px;flex-shrink:0;transition:all 0.15s;}
+  .nicole-cat-row .toggle-check.on{background:var(--blue);border-color:var(--blue);}
 </style>
 </head>
 <body>
 
 <div class="header">
   <div class="header-top">
-    <h1>כסף<span>.</span></h1>
-    <div class="month-nav">
-      <button onclick="changeMonth(-1)">‹</button>
-      <div class="month-label" id="monthLabel"></div>
-      <button onclick="changeMonth(1)">›</button>
+    <h1 id="appTitle">כסף<span>.</span></h1>
+    <div style="display:flex;align-items:center;gap:8px;">
+      <div class="lang-pill" onclick="toggleLang()" id="langPill">
+        <span id="langOptHE" class="active">עב</span>
+        <span id="langOptEN">EN</span>
+      </div>
+      <div class="month-nav">
+        <button onclick="changeMonth(-1)">‹</button>
+        <div class="month-label" id="monthLabel"></div>
+        <button onclick="changeMonth(1)">›</button>
+      </div>
     </div>
   </div>
 </div>
@@ -246,29 +262,29 @@
 <div class="summary-bar">
   <div class="summary-grid">
     <div class="summary-item">
-      <div class="label">הוצאתי</div>
+      <div class="label" id="lbl_spent">הוצאתי</div>
       <div class="value" id="totalSpent">₪0</div>
     </div>
     <div class="summary-item">
-      <div class="label">נטו לאחר מס</div>
+      <div class="label" id="lbl_net">נטו לאחר מס</div>
       <div class="value" style="color:var(--purple)" id="netSalary">—</div>
     </div>
     <div class="summary-item">
-      <div class="label">נשאר</div>
+      <div class="label" id="lbl_remaining">נשאר</div>
       <div class="value remaining ok" id="totalRemaining">—</div>
     </div>
   </div>
 </div>
 <div class="salary-bar">
-  <div class="salary-row"><span>הוצאות מתוך נטו</span><span id="barPct">—</span></div>
+  <div class="salary-row"><span id="lbl_barLabel">הוצאות מתוך נטו</span><span id="barPct">—</span></div>
   <div class="budget-bar-bg"><div class="budget-bar-fill ok" id="mainBar" style="width:0%"></div></div>
 </div>
 
 <div class="tabs">
-  <div class="tab active" onclick="switchTab('budget')">מאזן חודשי</div>
-  <div class="tab" onclick="switchTab('history')">היסטוריה</div>
-  <div class="tab" onclick="switchTab('analysis')">ניתוח</div>
-  <div class="tab" onclick="switchTab('settings')">הגדרות</div>
+  <div class="tab active" id="tab_budget" onclick="switchTab('budget')">מאזן חודשי</div>
+  <div class="tab" id="tab_history" onclick="switchTab('history')">היסטוריה</div>
+  <div class="tab" id="tab_analysis" onclick="switchTab('analysis')">ניתוח</div>
+  <div class="tab" id="tab_settings" onclick="switchTab('settings')">הגדרות</div>
 </div>
 
 <!-- BUDGET -->
@@ -280,7 +296,7 @@
     <select id="historyFilter" onchange="renderHistoryView()">
       <option value="all">כל ההיסטוריה</option>
     </select>
-    <button class="btn-add-past" onclick="openAddPastModal()">+ הוצאה ישנה</button>
+    <button class="btn-add-past" id="btn_addPast" onclick="openAddPastModal()">+ הוצאה ישנה</button>
   </div>
   <div id="historyList"></div>
 </div>
@@ -288,11 +304,11 @@
 <!-- ANALYSIS -->
 <div id="view-analysis" class="view">
   <!-- WEALTH at top -->
-  <div class="section-title" style="padding-top:8px">💎 חסכונות</div>
+  <div class="section-title" id="lbl_wealthSection" style="padding-top:8px">💎 חסכונות</div>
   <div class="wealth-card" id="wealthCard">
     <div style="display:flex;justify-content:space-between;align-items:flex-start">
       <div>
-        <h3>סך הכל חסכונות</h3>
+        <h3 id="lbl_wealthTitle">סך הכל חסכונות</h3>
         <div class="wealth-total" id="wealthTotal">—</div>
         <div class="wealth-delta flat" id="wealthDelta">—</div>
       </div>
@@ -303,30 +319,30 @@
       </div>
     </div>
     <div id="wealthBreakdown"></div>
-    <button class="wealth-edit-btn" onclick="openWealthModal()">✏️ עדכן יתרות לחודש זה</button>
+    <button class="wealth-edit-btn" id="btn_wealthEdit" onclick="openWealthModal()">✏️ עדכן יתרות לחודש זה</button>
   </div>
 
   <!-- Wealth trend chart -->
   <div class="chart-card">
-    <h3>📈 תוספת לחסכון — שנה נוכחית</h3>
+    <h3 id="lbl_wealthChart">📈 תוספת לחסכון — שנה נוכחית</h3>
     <canvas id="wealthChart" height="140"></canvas>
   </div>
 
   <!-- Income vs Expenses chart -->
   <div class="chart-card">
-    <h3>💰 הכנסות מול הוצאות — שנה נוכחית</h3>
+    <h3 id="lbl_incomeChart">💰 הכנסות מול הוצאות — שנה נוכחית</h3>
     <canvas id="incomeExpenseChart" height="160"></canvas>
   </div>
 
   <!-- Food chart -->
   <div class="chart-card">
-    <h3>🍽️ אוכל — שנה נוכחית</h3>
+    <h3 id="lbl_foodChart">🍽️ אוכל — שנה נוכחית</h3>
     <canvas id="foodChart" height="140"></canvas>
   </div>
 
   <!-- Car chart -->
   <div class="chart-card">
-    <h3>🚗 רכב — שנה נוכחית</h3>
+    <h3 id="lbl_carChart">🚗 רכב — שנה נוכחית</h3>
     <canvas id="carChart" height="140"></canvas>
   </div>
 
@@ -334,7 +350,7 @@
   <div id="analysisContent"></div>
 
   <!-- Pie comparison -->
-  <div class="section-title" style="padding-top:4px">השוואת חודשים</div>
+  <div class="section-title" id="lbl_pieSection" style="padding-top:4px">השוואת חודשים</div>
   <div class="pie-controls">
     <select id="pieMonth1" onchange="renderPieCharts()"><option value="">בחר חודש</option></select>
     <select id="pieMonth2" onchange="renderPieCharts()"><option value="">בחר חודש</option></select>
@@ -344,38 +360,48 @@
 
 <!-- SETTINGS -->
 <div id="view-settings" class="view">
-  <div class="section-title">משכורת והכנסות</div>
+  <div class="section-title" id="lbl_salarySection">משכורת והכנסות</div>
   <div class="settings-row">
-    <label>ברוטו חודשי (₪)</label>
+    <label id="lbl_gross">ברוטו חודשי (₪)</label>
     <input type="number" id="salaryGross" placeholder="0" oninput="saveSalary()">
   </div>
   <div class="settings-row">
-    <label>מיסים / ניכויים (₪)</label>
+    <label id="lbl_tax">מיסים / ניכויים (₪)</label>
     <input type="number" id="salaryTax" placeholder="0" oninput="saveSalary()">
   </div>
   <div class="settings-row">
-    <label>קרן השתלמות — ניכוי חודשי (₪)</label>
+    <label id="lbl_keren">קרן השתלמות — ניכוי חודשי (₪)</label>
     <input type="number" id="salaryKeren" placeholder="0" oninput="saveSalary()">
   </div>
   <div class="settings-row">
-    <label>פנסיה — ניכוי חודשי (₪)</label>
+    <label id="lbl_pension">פנסיה — ניכוי חודשי (₪)</label>
     <input type="number" id="salaryPension" placeholder="0" oninput="saveSalary()">
   </div>
   <div class="settings-row" style="background:rgba(139,92,246,0.08);border-color:rgba(139,92,246,0.3)">
-    <label style="color:var(--purple);font-weight:600">נטו לאחר כל ניכויים</label>
+    <label id="lbl_netLabel" style="color:var(--purple);font-weight:600">נטו לאחר כל ניכויים</label>
     <span id="netDisplay" style="font-size:16px;font-weight:700;color:var(--purple)">₪0</span>
   </div>
-  <div class="section-title" style="margin-top:8px">קטגוריות — ✓ מוצג | תקציב | מחיקה</div>
+  <div class="section-title" id="lbl_catsSection" style="margin-top:8px">קטגוריות — ✓ מוצג | תקציב | מחיקה</div>
   <div id="settingsList"></div>
   <div style="margin:12px 8px 0">
-    <div class="section-title" style="padding:0 12px 8px">שיתוף עם ניקול</div>
-    <div class="settings-row">
-      <label>שכר דירה משותף (₪)</label>
-      <input type="number" id="nicoleRent" placeholder="0" onchange="saveNicole()">
+    <div id="nicoleSectionHeader" style="display:flex;align-items:center;justify-content:space-between;padding:0 4px 8px;">
+      <div class="section-title" id="lbl_nicoleSection" style="padding:0;">שיתוף עם ניקול</div>
+      <div style="display:flex;align-items:center;gap:8px;">
+        <button onclick="openRenameNicole()" style="background:none;border:none;color:var(--text-muted);font-size:16px;cursor:pointer;" title="Rename">✏️</button>
+        <button onclick="toggleNicoleVisible()" id="nicoleToggleBtn" style="background:var(--surface2);border:1px solid var(--border);color:var(--text-muted);border-radius:8px;padding:4px 10px;font-family:'Heebo',sans-serif;font-size:12px;font-weight:600;cursor:pointer;">הסתר</button>
+      </div>
     </div>
-    <div class="settings-row">
-      <label>ועד בית משותף (₪)</label>
-      <input type="number" id="nicoleVaad" placeholder="0" onchange="saveNicole()">
+    <div id="nicoleSectionBody">
+      <div class="settings-row">
+        <label id="lbl_nicoleRent">שכר דירה משותף (₪)</label>
+        <input type="number" id="nicoleRent" placeholder="0" onchange="saveNicole()">
+      </div>
+      <div class="settings-row">
+        <label id="lbl_nicoleVaad">ועד בית משותף (₪)</label>
+        <input type="number" id="nicoleVaad" placeholder="0" onchange="saveNicole()">
+      </div>
+      <div class="section-title" id="lbl_nicoleCatsSection" style="padding:10px 4px 6px;font-size:11px;">קטגוריות לחלוקה (חצי)</div>
+      <div id="nicoleCatsList"></div>
     </div>
   </div>
 </div>
@@ -390,25 +416,25 @@
     <div id="selectedCatDisplay" class="modal-cat-selected" style="display:none"></div>
     <div id="amountSection" style="display:none">
       <div id="monthPickerRow" style="margin-bottom:12px;display:none">
-        <div class="form-label">חודש</div>
+        <div class="form-label" id="lbl_monthPicker">חודש</div>
         <select class="form-input" id="modalMonthPicker" style="margin-bottom:0"></select>
       </div>
       <div style="display:flex;gap:8px;margin-bottom:12px;">
-        <button id="typeExpense" onclick="setEntryType('expense')" style="flex:1;padding:10px;border-radius:10px;border:2px solid var(--red);background:rgba(239,68,68,0.15);color:var(--red);font-family:'Heebo',sans-serif;font-size:14px;font-weight:700;cursor:pointer;">− הוצאה</button>
+        <button id="typeExpense" onclick="setEntryType('expense')" style="flex:1;padding:10px;border-radius:10px;border:2px solid var(--red);background:rgba(239,68,68,0.15);color:var(--red);font-family:'Heebo',sans-serif;font-size:14px;font-weight:700;cursor:pointer;" id="btn_typeExpense">− הוצאה</button>
         <button id="typeIncome" onclick="setEntryType('income')" style="flex:1;padding:10px;border-radius:10px;border:1px solid var(--border);background:var(--surface2);color:var(--text-muted);font-family:'Heebo',sans-serif;font-size:14px;font-weight:700;cursor:pointer;">+ החזר / הכנסה</button>
       </div>
-      <div class="form-label">סכום</div>
+      <div class="form-label" id="lbl_amount">סכום</div>
       <div class="currency-row">
         <input type="number" class="form-input amount-input" id="amountInput" placeholder="0" inputmode="decimal">
         <span class="currency-symbol">₪</span>
       </div>
-      <div class="form-label">תיאור (אופציונלי)</div>
+      <div class="form-label" id="lbl_note">תיאור (אופציונלי)</div>
       <input type="text" class="form-input" id="noteInput" placeholder="למה זה היה?">
-      <button class="btn-primary" onclick="saveExpense()">שמור הוצאה</button>
-      <button class="btn-secondary" onclick="document.getElementById('addModal').classList.remove('open')">ביטול</button>
+      <button class="btn-primary" id="btn_saveExpense" onclick="saveExpense()">שמור הוצאה</button>
+      <button class="btn-secondary" id="btn_cancelExpense" onclick="document.getElementById('addModal').classList.remove('open')">ביטול</button>
     </div>
     <div id="catPickerSection">
-      <div class="form-label">בחר קטגוריה</div>
+      <div class="form-label" id="lbl_pickCat">בחר קטגוריה</div>
       <div class="cat-picker" id="catPicker"></div>
     </div>
   </div>
@@ -420,25 +446,136 @@
     <div class="modal-handle"></div>
     <h2 id="wealthModalTitle">עדכון יתרות</h2>
     <div id="wealthInputs"></div>
-    <button class="btn-primary" onclick="saveWealth()">שמור</button>
-    <button class="btn-secondary" onclick="document.getElementById('wealthModal').classList.remove('open')">ביטול</button>
+    <button class="btn-primary" id="btn_saveWealth" onclick="saveWealth()">שמור</button>
+    <button class="btn-secondary" id="btn_cancelWealth" onclick="document.getElementById('wealthModal').classList.remove('open')">ביטול</button>
+  </div>
+</div>
+
+<!-- TEXT INPUT MODAL (replaces all prompt() calls) -->
+<div class="modal-overlay" id="textInputModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <h2 id="textInputTitle">שם</h2>
+    <input type="text" class="form-input" id="textInputField" style="margin-bottom:12px;">
+    <button class="btn-primary" id="btn_textInputSave" onclick="confirmTextInput()">שמור</button>
+    <button class="btn-secondary" onclick="document.getElementById('textInputModal').classList.remove('open')">ביטול</button>
   </div>
 </div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"></script>
 <script>
 const MONTHS_HE=['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
+const MONTHS_EN=['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+// ── Language ────────────────────────────────────────────
+let lang=localStorage.getItem('app_lang')||'he';
+function MONTHS(){return lang==='en'?MONTHS_EN:MONTHS_HE;}
+function getCATEGORIES(){return lang==='en'?CATEGORIES_EN:CATEGORIES_HE;}
+function renderStaticUI(){
+  const e=lang==='en';
+  // Header pill
+  document.getElementById('appTitle').innerHTML=e?'Money<span>.</span>':'כסף<span>.</span>';
+  document.getElementById('langOptHE').className=e?'':'active';
+  document.getElementById('langOptEN').className=e?'active':'';
+  // Summary labels
+  document.getElementById('lbl_spent').textContent=e?'Spent':'הוצאתי';
+  document.getElementById('lbl_net').textContent=e?'Net Salary':'נטו לאחר מס';
+  document.getElementById('lbl_remaining').textContent=e?'Remaining':'נשאר';
+  document.getElementById('lbl_barLabel').textContent=e?'Expenses vs Net':'הוצאות מתוך נטו';
+  // Tabs
+  document.getElementById('tab_budget').textContent=e?'Budget':'מאזן חודשי';
+  document.getElementById('tab_history').textContent=e?'History':'היסטוריה';
+  document.getElementById('tab_analysis').textContent=e?'Analysis':'ניתוח';
+  document.getElementById('tab_settings').textContent=e?'Settings':'הגדרות';
+  // History
+  document.getElementById('btn_addPast').textContent=e?'+ Past Expense':'+ הוצאה ישנה';
+  // Analysis
+  document.getElementById('lbl_wealthSection').textContent=e?'💎 Savings':'💎 חסכונות';
+  document.getElementById('lbl_wealthTitle').textContent=e?'Total Savings':'סך הכל חסכונות';
+  document.getElementById('btn_wealthEdit').textContent=e?'✏️ Update this month':'✏️ עדכן יתרות לחודש זה';
+  document.getElementById('lbl_wealthChart').textContent=e?'📈 Savings Trend — Current Year':'📈 תוספת לחסכון — שנה נוכחית';
+  document.getElementById('lbl_incomeChart').textContent=e?'💰 Income vs Expenses — Current Year':'💰 הכנסות מול הוצאות — שנה נוכחית';
+  document.getElementById('lbl_foodChart').textContent=e?'🍽️ Food — Current Year':'🍽️ אוכל — שנה נוכחית';
+  document.getElementById('lbl_carChart').textContent=e?'🚗 Car — Current Year':'🚗 רכב — שנה נוכחית';
+  document.getElementById('lbl_pieSection').textContent=e?'Month Comparison':'השוואת חודשים';
+  // Settings
+  document.getElementById('lbl_salarySection').textContent=e?'Salary & Income':'משכורת והכנסות';
+  document.getElementById('lbl_gross').textContent=e?'Monthly Gross (₪)':'ברוטו חודשי (₪)';
+  document.getElementById('lbl_tax').textContent=e?'Taxes / Deductions (₪)':'מיסים / ניכויים (₪)';
+  document.getElementById('lbl_keren').textContent=e?'Education Fund — monthly (₪)':'קרן השתלמות — ניכוי חודשי (₪)';
+  document.getElementById('lbl_pension').textContent=e?'Pension — monthly (₪)':'פנסיה — ניכוי חודשי (₪)';
+  document.getElementById('lbl_netLabel').textContent=e?'Net after all deductions':'נטו לאחר כל ניכויים';
+  document.getElementById('lbl_catsSection').textContent=e?'Categories — ✓ Visible | Budget | Delete':'קטגוריות — ✓ מוצג | תקציב | מחיקה';
+  const nicoleName=(getNicole().name)||'Nicole';
+  document.getElementById('lbl_nicoleSection').textContent=(e?'Shared with ':'שיתוף עם ')+nicoleName;
+  document.getElementById('lbl_nicoleRent').textContent=e?'Shared Rent (₪)':'שכר דירה משותף (₪)';
+  document.getElementById('lbl_nicoleVaad').textContent=e?'Shared Vaad Bait (₪)':'ועד בית משותף (₪)';
+  document.getElementById('lbl_nicoleCatsSection').textContent=e?'Split categories (half)':'קטגוריות לחלוקה (חצי)';
+  const toggleBtn=document.getElementById('nicoleToggleBtn');
+  if(toggleBtn)toggleBtn.textContent=getNicole().visible!==false?(e?'Hide':'הסתר'):(e?'Show':'הצג');
+  // Modal
+  document.getElementById('lbl_amount').textContent=e?'Amount':'סכום';
+  document.getElementById('lbl_note').textContent=e?'Note (optional)':'תיאור (אופציונלי)';
+  document.getElementById('lbl_pickCat').textContent=e?'Choose category':'בחר קטגוריה';
+  document.getElementById('btn_saveExpense').textContent=e?'Save':'שמור הוצאה';
+  document.getElementById('btn_cancelExpense').textContent=e?'Cancel':'ביטול';
+  document.getElementById('btn_saveWealth').textContent=e?'Save':'שמור';
+  document.getElementById('btn_cancelWealth').textContent=e?'Cancel':'ביטול';
+  document.getElementById('typeExpense').textContent=e?'− Expense':'− הוצאה';
+  document.getElementById('typeIncome').textContent=e?'+ Refund / Income':'+ החזר / הכנסה';
+  document.getElementById('lbl_monthPicker').textContent=e?'Month':'חודש';
+  document.getElementById('noteInput').placeholder=e?'Why was this?':'למה זה היה?';
+  // Force-repopulate pie month selects with correct language
+  const allKeys=getAllMonthKeys();
+  ['pieMonth1','pieMonth2'].forEach((id,idx)=>{
+    const el=document.getElementById(id), cur=el.value;
+    el.innerHTML=`<option value="">${e?'Select month':'בחר חודש'}</option>`+allKeys.map(k=>`<option value="${k}">${keyToLabel(k)}</option>`).join('');
+    if(cur&&allKeys.includes(cur))el.value=cur;
+    else if(idx===0&&allKeys[0])el.value=allKeys[0];
+    else if(idx===1&&allKeys[1])el.value=allKeys[1];
+  });
+  // dir
+  document.documentElement.lang=e?'en':'he';
+  document.documentElement.dir=e?'ltr':'rtl';
+}
+// ── Text Input Modal (replaces all prompt() calls) ───────
+let _textInputCallback=null, _textInputOptional=false;
+function openTextInput(title, defaultVal, callback, optional=false){
+  document.getElementById('textInputTitle').textContent=title;
+  document.getElementById('textInputField').value=defaultVal||'';
+  _textInputCallback=callback;
+  _textInputOptional=optional;
+  document.getElementById('textInputModal').classList.add('open');
+  setTimeout(()=>document.getElementById('textInputField').focus(),100);
+}
+function confirmTextInput(){
+  const val=document.getElementById('textInputField').value.trim();
+  if(!val&&!_textInputOptional)return;
+  document.getElementById('textInputModal').classList.remove('open');
+  if(_textInputCallback)_textInputCallback(val);
+}
+// Allow Enter key to confirm
+document.addEventListener('keydown',e=>{
+  if(e.key==='Enter'&&document.getElementById('textInputModal').classList.contains('open'))confirmTextInput();
+});
+
+function toggleLang(){
+  lang=lang==='he'?'en':'he';
+  localStorage.setItem('app_lang',lang);
+  renderStaticUI();
+  render(); // render() calls populatePieSelects and renderHistoryView internally
+}
 
 const WEALTH_ACCOUNTS=[
-  {id:'bank',    name:"עו\"ש + פר\"י",         icon:'🏦'},
-  {id:'savings', name:'תוכניות חיסכון בבנק',   icon:'🏛️'},
-  {id:'stocks',  name:"ני\"ע סחירים",           icon:'📈'},
-  {id:'pension', name:'פנסיה',                  icon:'👴'},
-  {id:'keren',   name:'קרן השתלמות',            icon:'🌿'},
-  {id:'kupat',   name:"קופת גמ\"ל",             icon:'💼'},
+  {id:'bank',    name:"עו\"ש + פר\"י",         nameEn:'Checking Account',    icon:'🏦'},
+  {id:'savings', name:'תוכניות חיסכון בבנק',   nameEn:'Bank Investments',    icon:'🏛️'},
+  {id:'stocks',  name:"ני\"ע סחירים",           nameEn:'Securities / Bonds',  icon:'📈'},
+  {id:'pension', name:'פנסיה',                  nameEn:'Pension',             icon:'👴'},
+  {id:'keren',   name:'קרן השתלמות',            nameEn:'Education Fund',      icon:'🌿'},
+  {id:'kupat',   name:"קופת גמ\"ל",             nameEn:'Provident Fund (Gemel)',icon:'💼'},
 ];
 
-const CATEGORIES=[
+const CATEGORIES_HE=[
   {id:'rent',             name:'שכר דירה',                             icon:'🏠',group:'בית',          budget:4000,shared:true},
   {id:'mortgage',         name:'משכנתא/לימודים',                       icon:'🎓',group:'בית',          budget:0},
   {id:'vaad',             name:'ועד בית',                              icon:'🏢',group:'בית',          budget:200,shared:true},
@@ -487,6 +624,55 @@ const CATEGORIES=[
   {id:'paybox',           name:'פיבוקס',                               icon:'💳',group:'כספים',        budget:0},
 ];
 
+const CATEGORIES_EN=[
+  {id:'rent',             name:'Rent',                                 icon:'🏠',group:'Home',          budget:4000,shared:true},
+  {id:'mortgage',         name:'Mortgage / School Tuition',            icon:'🎓',group:'Home',          budget:0},
+  {id:'vaad',             name:'Vaad Bait',                            icon:'🏢',group:'Home',          budget:200,shared:true},
+  {id:'arnona',           name:'Property Tax',                         icon:'📋',group:'Home',          budget:275,nicoleShared:true},
+  {id:'water',            name:'Water Bill',                           icon:'💧',group:'Home',          budget:150,nicoleShared:true},
+  {id:'electric',         name:'Electricity Bill',                     icon:'⚡',group:'Home',          budget:250,nicoleShared:true},
+  {id:'gas',              name:'Gas',                                  icon:'🔥',group:'Home',          budget:0,  nicoleShared:true},
+  {id:'appliances',       name:'Electrical Products',                  icon:'🖥️',group:'Home',         budget:100},
+  {id:'furniture',        name:'Furniture',                            icon:'🛋️',group:'Home',         budget:200},
+  {id:'kitchen',          name:'Kitchen Aids',                         icon:'🍳',group:'Home',          budget:50},
+  {id:'maintenance',      name:'House Maintenance',                    icon:'🔧',group:'Home',          budget:100},
+  {id:'nursery',          name:'Plants',                               icon:'🌱',group:'Home',          budget:150},
+  {id:'supermarket',      name:'Supermarket',                          icon:'🛒',group:'Food',          budget:1500,nicoleShared:true},
+  {id:'restaurants',      name:'Restaurants',                          icon:'🍽️',group:'Food',         budget:400},
+  {id:'coffee',           name:'Coffee & Bakery',                      icon:'☕',group:'Food',          budget:0},
+  {id:'deliveries',       name:'Take Outs',                            icon:'🛵',group:'Food',          budget:0},
+  {id:'pharmacy',         name:'Pharmacy',                             icon:'💊',group:'Health',        budget:150},
+  {id:'medical1',         name:'One-time expenses (glasses, insoles)',  icon:'👓',group:'Health',        budget:300},
+  {id:'medical2',         name:'One-time treatments (dentist)',         icon:'🦷',group:'Health',        budget:300},
+  {id:'insurance_health', name:'Private Medical Insurance',            icon:'🏥',group:'Insurances',    budget:60},
+  {id:'insurance_accident',name:'Personal Accident Insurance',         icon:'🛡️',group:'Insurances',   budget:0},
+  {id:'insurance_life',   name:'Life Insurance',                       icon:'❤️',group:'Insurances',    budget:90},
+  {id:'insurance_car',    name:'Car Insurance',                        icon:'🚗',group:'Transportation',budget:0},
+  {id:'car_test',         name:'Yearly Test',                          icon:'🔍',group:'Transportation',budget:0},
+  {id:'fuel',             name:'Fuel',                                 icon:'⛽',group:'Transportation',budget:0},
+  {id:'parking',          name:'Parking / Car Wash',                   icon:'🅿️',group:'Transportation',budget:0},
+  {id:'public_transport', name:'Public Transport / Taxis / Fines',     icon:'🚌',group:'Transportation',budget:0},
+  {id:'highways',         name:'High Roads',                           icon:'🛣️',group:'Transportation',budget:0},
+  {id:'car_repair',       name:'Car Repairs',                          icon:'🔧',group:'Transportation',budget:0},
+  {id:'streaming',        name:'Netflix / Yes',                        icon:'🎵',group:'Communication', budget:100,nicoleShared:true},
+  {id:'phone',            name:'Cellphone',                            icon:'📱',group:'Communication', budget:100},
+  {id:'internet',         name:'Internet',                             icon:'🌐',group:'Communication', budget:100,nicoleShared:true},
+  {id:'gym',              name:'Gym / Pool / Pickleball',              icon:'💪',group:'Communication', budget:0},
+  {id:'hotel',            name:'Hotels',                               icon:'🏨',group:'Spare Time',    budget:0},
+  {id:'flights',          name:'Flight Tickets',                       icon:'✈️',group:'Spare Time',    budget:0},
+  {id:'attractions',      name:'Attractions / Performances',           icon:'🎭',group:'Spare Time',    budget:0},
+  {id:'trips',            name:'Trips IL',                             icon:'🏔️',group:'Spare Time',   budget:0},
+  {id:'cash',             name:'Spending Money',                       icon:'💵',group:'Spare Time',    budget:0},
+  {id:'gifts',            name:'Gifts',                                icon:'🎁',group:'Spare Time',    budget:0},
+  {id:'pubs',             name:'Pops / Books / Tattoos',               icon:'📚',group:'Spare Time',    budget:0},
+  {id:'online',           name:'Online Orders (Aliexpress, Amazon)',   icon:'📦',group:'Spare Time',    budget:0},
+  {id:'clothes',          name:'Clothes',                              icon:'👕',group:'Spare Time',    budget:0},
+  {id:'pets',             name:'Pets',                                 icon:'🐾',group:'Spare Time',    budget:0},
+  {id:'bank_fees',        name:'Card Fees / Bank Charges',             icon:'🏦',group:'Money Transaction',budget:0},
+  {id:'bit',              name:'Bit',                                  icon:'💸',group:'Money Transaction',budget:0},
+  {id:'paybox',           name:'Paybox',                               icon:'💳',group:'Money Transaction',budget:0},
+];
+
 const FOOD_CATS   = ['supermarket','restaurants','coffee','deliveries'];
 const CAR_CATS    = ['insurance_car','car_test','fuel','parking','public_transport','highways','car_repair'];
 
@@ -504,10 +690,12 @@ function getData()    {return ls('expenses_data',{});}
 function saveData(d)  {lsSet('expenses_data',d);}
 function getBudgets() {return ls('budgets',{});}
 function saveBudgets(b){lsSet('budgets',b);}
-function getNicole()  {return ls('nicole',{rent:7900,vaad:390});}
-function saveNicole() {
-  lsSet('nicole',{rent:parseFloat(document.getElementById('nicoleRent').value)||0,
-                  vaad:parseFloat(document.getElementById('nicoleVaad').value)||0});
+function getNicole(){return ls('nicole',{rent:7900,vaad:390,name:'Nicole',visible:true,sharedCats:['supermarket','streaming','internet','electric','arnona','water','gas']});}
+function saveNicole(){
+  const n=getNicole();
+  n.rent=parseFloat(document.getElementById('nicoleRent').value)||0;
+  n.vaad=parseFloat(document.getElementById('nicoleVaad').value)||0;
+  lsSet('nicole',n);
 }
 function getSalary()  {return ls('salary',{gross:0,tax:0,keren:0,pension:0});}
 function saveSalary() {
@@ -537,17 +725,17 @@ function isCatVisible(id){return !getHiddenCats().includes(id);}
 // Merge default CATEGORIES with custom ones
 function getAllCats(){
   const custom=getCustomCats();
-  return [...CATEGORIES, ...custom.cats];
+  return [...getCATEGORIES(), ...custom.cats];
 }
 function getAllGroups(){
   const custom=getCustomCats();
-  const defaultGroups=[...new Set(CATEGORIES.map(c=>c.group))];
+  const defaultGroups=[...new Set(getCATEGORIES().map(c=>c.group))];
   return [...defaultGroups, ...custom.groups.filter(g=>!defaultGroups.includes(g))];
 }
 
 // ── Helpers ─────────────────────────────────────────────
 function getMonthKey(d){return `${d.getFullYear()}-${String(d.getMonth()).padStart(2,'0')}`;}
-function keyToLabel(k){const[y,m]=k.split('-');return `${MONTHS_HE[parseInt(m)]} ${y}`;}
+function keyToLabel(k){const[y,m]=k.split('-');return `${MONTHS()[parseInt(m)]} ${y}`;}
 function getCatBudget(id){const b=getBudgets();if(b[id]!==undefined)return b[id];const c=getAllCats().find(c=>c.id===id);return c?c.budget:0;}
 function getExpensesForKey(key){return getData()[key]||[];}
 function getMonthExpenses(){return getExpensesForKey(getMonthKey(currentDate));}
@@ -574,7 +762,7 @@ function changeWealthMonth(dir){wealthDate.setMonth(wealthDate.getMonth()+dir);r
 
 // ── Main render ─────────────────────────────────────────
 function render(){
-  document.getElementById('monthLabel').textContent=`${MONTHS_HE[currentDate.getMonth()]} ${currentDate.getFullYear()}`;
+  document.getElementById('monthLabel').textContent=`${MONTHS()[currentDate.getMonth()]} ${currentDate.getFullYear()}`;
   const spent=getTotalSpent(), net=getNet(), budget=getTotalBudget();
   const base=net>0?net:budget;
   const remaining=base-spent, pct=base>0?(spent/base)*100:0, cls=pctClass(pct);
@@ -589,8 +777,8 @@ function render(){
   document.getElementById('mainBar').className=`budget-bar-fill ${cls}`;
 
   const banner=document.getElementById('alertBanner');
-  if(base>0&&pct>=100){banner.textContent=`⚠️ חרגת מהמאזן חודשי ב-${fmt(spent-base)}`;banner.className='alert-banner over';banner.style.display='block';}
-  else if(base>0&&pct>=80){banner.textContent=`🔔 השתמשת ב-${Math.round(pct)}% — נשאר ${fmt(remaining)}`;banner.className='alert-banner warn';banner.style.display='block';}
+  if(base>0&&pct>=100){banner.textContent=`⚠️ ${lang==='en'?`Over budget by ${fmt(spent-base)}`:`חרגת מהמאזן חודשי ב-${fmt(spent-base)}`}`;banner.className='alert-banner over';banner.style.display='block';}
+  else if(base>0&&pct>=80){banner.textContent=`🔔 ${lang==='en'?`${Math.round(pct)}% used — ${fmt(remaining)} left`:`השתמשת ב-${Math.round(pct)}% — נשאר ${fmt(remaining)}`}`;banner.className='alert-banner warn';banner.style.display='block';}
   else{banner.style.display='none';}
 
   renderBudgetView();
@@ -623,7 +811,7 @@ function renderBudgetView(){
         <div class="cat-info"><div class="cat-name">${cat.name}</div>
           <div class="mini-bar"><div class="mini-bar-fill ${cls}" style="width:${budget>0?Math.min(pct,100):0}%"></div></div></div>
         <div class="cat-amounts"><div class="cat-spent ${cls}">${fmt(spent)}</div>
-          <div class="cat-budget">${budget>0?'מתוך '+fmt(budget):'ללא מאזן חודשי'}</div></div></div>`;
+          <div class="cat-budget">${budget>0?(lang==='en'?'of ':'מתוך ')+fmt(budget):(lang==='en'?'No budget':'ללא מאזן חודשי')}</div></div></div>`;
     });
   }
   container.innerHTML=html;
@@ -636,12 +824,12 @@ function renderHistoryView(){
   const currentKey=getMonthKey(currentDate);
   const allWithCurrent=allKeys.includes(currentKey)?allKeys:[currentKey,...allKeys];
   const prevVal=filterEl.value;
-  filterEl.innerHTML='<option value="all">כל ההיסטוריה</option>'+
+  filterEl.innerHTML=`<option value="all">${lang==='en'?'All History':'כל ההיסטוריה'}</option>`+
     allWithCurrent.map(k=>`<option value="${k}"${k===prevVal?' selected':''}>${keyToLabel(k)}</option>`).join('');
   const data=getData(), container=document.getElementById('historyList');
   const selected=filterEl.value;
   let keysToShow=selected==='all'?allWithCurrent:[selected];
-  if(!keysToShow.length){container.innerHTML=`<div class="empty-state"><div class="emoji">📭</div><p>אין הוצאות עדיין</p></div>`;return;}
+  if(!keysToShow.length){container.innerHTML=`<div class="empty-state"><div class="emoji">📭</div><p>${lang==='en'?'No expenses yet':'אין הוצאות עדיין'}</p></div>`;return;}
   let html='',total=0;
   keysToShow.forEach(key=>{
     const txs=(data[key]||[]).slice().reverse();
@@ -658,7 +846,7 @@ function renderHistoryView(){
         <button class="tx-delete" onclick="deleteExpense('${tx.id}','${key}')">✕</button></div>`;
     });
   });
-  container.innerHTML=total?html:`<div class="empty-state"><div class="emoji">📭</div><p>אין הוצאות</p></div>`;
+  container.innerHTML=total?html:`<div class="empty-state"><div class="emoji">📭</div><p>${lang==='en'?'No expenses':'אין הוצאות'}</p></div>`;
 }
 
 // ── Wealth card ──────────────────────────────────────────
@@ -675,7 +863,7 @@ function renderWealthCard(){
   const deltaEl=document.getElementById('wealthDelta');
   if(total>0&&prevTotal>0){
     const diff=total-prevTotal;
-    deltaEl.textContent=(diff>=0?'▲ +':'▼ ')+fmt(Math.abs(diff))+' מהחודש שעבר';
+    deltaEl.textContent=(diff>=0?'▲ +':'▼ ')+fmt(Math.abs(diff))+(lang==='en'?' vs prev month':' מהחודש שעבר');
     deltaEl.className='wealth-delta '+(diff>=0?'up':'down');
   } else {deltaEl.textContent='—';deltaEl.className='wealth-delta flat';}
 
@@ -683,10 +871,10 @@ function renderWealthCard(){
   if(total>0){
     bd.innerHTML=WEALTH_ACCOUNTS.map(a=>{
       const v=acc[a.id]||0;
-      return v>0?`<div class="analysis-row"><span class="name">${a.icon} ${a.name}</span><span class="val" style="color:var(--teal)">${fmt(v)}</span></div>`:'';
+      return v>0?`<div class="analysis-row"><span class="name">${a.icon} ${lang==='en'?a.nameEn:a.name}</span><span class="val" style="color:var(--teal)">${fmt(v)}</span></div>`:'';
     }).join('');
   } else {
-    bd.innerHTML='<div style="color:var(--text-muted);font-size:12px;padding:8px 0">לא הוזנו יתרות לחודש זה</div>';
+    bd.innerHTML=`<div style="color:var(--text-muted);font-size:12px;padding:8px 0">${lang==='en'?'No data entered for this month':'לא הוזנו יתרות לחודש זה'}</div>`;
   }
 }
 
@@ -704,15 +892,18 @@ function renderAnalysisView(){
 
   const prevKey=getPrevMonthKey(), prevLabel=keyToLabel(prevKey);
   const nicole=getNicole();
+  if(!nicole.visible){
+    // still compute but render nothing for the card
+  }
   const nicoleRentShare=nicole.rent/2, nicoleVaadShare=nicole.vaad/2;
-  const superSpent=getCatSpentInKey('supermarket',prevKey);
-  const streamSpent=getCatSpentInKey('streaming',prevKey);
-  const internetSpent=getCatSpentInKey('internet',prevKey);
-  const electricSpent=getCatSpentInKey('electric',prevKey);
-  const arnonaSpent=getCatSpentInKey('arnona',prevKey);
-  const waterSpent=getCatSpentInKey('water',prevKey);
-  const gasSpent=getCatSpentInKey('gas',prevKey);
-  const nicoleTotal=nicoleRentShare+nicoleVaadShare+(superSpent+streamSpent+internetSpent+electricSpent+arnonaSpent+waterSpent+gasSpent)/2;
+  const sharedCats=nicole.sharedCats||[];
+  const sharedRows=sharedCats.map(catId=>{
+    const cat=getAllCats().find(c=>c.id===catId);
+    const spent=getCatSpentInKey(catId,prevKey);
+    return {catId,cat,spent};
+  });
+  const nicoleSharedTotal=sharedRows.reduce((s,r)=>s+r.spent,0);
+  const nicoleTotal=nicoleRentShare+nicoleVaadShare+nicoleSharedTotal/2;
 
   const hidden=getHiddenCats();
   const catTotals={};
@@ -724,39 +915,35 @@ function renderAnalysisView(){
   if(salary.gross>0){
     const leftover=net-total; const totalDeductions=salary.tax+(salary.keren||0)+(salary.pension||0);
     html+=`<div class="salary-card">
-      <h3>💜 תמונת הכנסה — ${MONTHS_HE[currentDate.getMonth()]}</h3>
+      <h3>💜 ${lang==='en'?'Income Summary':'תמונת הכנסה'} — ${MONTHS()[currentDate.getMonth()]}</h3>
       <div class="salary-big">${fmt(net)}</div>
-      <div class="salary-sub">נטו לאחר ניכוי ${fmt(salary.tax)} מיסים</div>
+      <div class="salary-sub">${lang==='en'?`Net after ${fmt(salary.tax)} taxes`:`נטו לאחר ניכוי ${fmt(salary.tax)} מיסים`}</div>
       <div class="salary-breakdown">
-        <div class="analysis-row"><span class="name">ברוטו</span><span class="val">${fmt(salary.gross)}</span></div>
-        <div class="analysis-row"><span class="name">מיסים</span><span class="val" style="color:var(--red)">-${fmt(salary.tax)}</span></div>
-        ${salary.keren>0?`<div class="analysis-row"><span class="name">🌿 קרן השתלמות (שלי)</span><span class="val" style="color:var(--teal)">-${fmt(salary.keren)}</span></div>`:''}
-        ${salary.pension>0?`<div class="analysis-row"><span class="name">👴 פנסיה (שלי)</span><span class="val" style="color:var(--teal)">-${fmt(salary.pension)}</span></div>`:''}
-        <div class="analysis-row"><span class="name">הוצאות החודש</span><span class="val" style="color:var(--red)">-${fmt(total)}</span></div>
-        <div class="analysis-row"><span class="name" style="font-weight:600">${leftover>=0?'✅ נשאר':'❌ חריגה'}</span>
+        <div class="analysis-row"><span class="name">${lang==='en'?'Gross':'ברוטו'}</span><span class="val">${fmt(salary.gross)}</span></div>
+        <div class="analysis-row"><span class="name">${lang==='en'?'Taxes':'מיסים'}</span><span class="val" style="color:var(--red)">-${fmt(salary.tax)}</span></div>
+        ${salary.keren>0?`<div class="analysis-row"><span class="name">🌿 ${lang==='en'?'Education Fund (mine)':'קרן השתלמות (שלי)'}</span><span class="val" style="color:var(--teal)">-${fmt(salary.keren)}</span></div>`:''}
+        ${salary.pension>0?`<div class="analysis-row"><span class="name">👴 ${lang==='en'?'Pension (mine)':'פנסיה (שלי)'}</span><span class="val" style="color:var(--teal)">-${fmt(salary.pension)}</span></div>`:''}
+        <div class="analysis-row"><span class="name">${lang==='en'?'This month expenses':'הוצאות החודש'}</span><span class="val" style="color:var(--red)">-${fmt(total)}</span></div>
+        <div class="analysis-row"><span class="name" style="font-weight:600">${leftover>=0?`✅ ${lang==='en'?'Remaining':'נשאר'}`:`❌ ${lang==='en'?'Over budget':'חריגה'}`}</span>
           <span class="val" style="color:${leftover>=0?'var(--green)':'var(--red)'};font-size:16px">${leftover>=0?fmt(leftover):'-'+fmt(Math.abs(leftover))}</span></div>
       </div></div>`;
   }
 
-  html+=`<div class="nicole-card">
-    <h3>💙 חלקה של ניקול</h3>
+  if(nicole.visible!==false){
+    html+=`<div class="nicole-card">
+    <h3>💙 ${nicole.name||'Nicole'}${lang==='en'?'\'s Share':' — חלק'}</h3>
     <div class="nicole-amount">${fmt(nicoleTotal)}</div>
-    <div class="nicole-month-note">עבור ${prevLabel} (לתשלום בסוף החודש)</div>
-    <div class="analysis-row"><span class="name">🏠 שכר דירה (חצי)</span><span class="val">${fmt(nicoleRentShare)}</span></div>
-    <div class="analysis-row"><span class="name">🏢 ועד בית (חצי)</span><span class="val">${fmt(nicoleVaadShare)}</span></div>
-    <div class="analysis-row"><span class="name">🛒 סופרמרקט (חצי) — ${prevLabel}</span><span class="val">${fmt(superSpent/2)}</span></div>
-    <div class="analysis-row"><span class="name">🎵 מנויים (חצי) — ${prevLabel}</span><span class="val">${fmt(streamSpent/2)}</span></div>
-    <div class="analysis-row"><span class="name">🌐 אינטרנט (חצי) — ${prevLabel}</span><span class="val">${fmt(internetSpent/2)}</span></div>
-    <div class="analysis-row"><span class="name">⚡ חשמל (חצי) — ${prevLabel}</span><span class="val">${fmt(electricSpent/2)}</span></div>
-    <div class="analysis-row"><span class="name">📋 ארנונה (חצי) — ${prevLabel}</span><span class="val">${fmt(arnonaSpent/2)}</span></div>
-    <div class="analysis-row"><span class="name">💧 מים (חצי) — ${prevLabel}</span><span class="val">${fmt(waterSpent/2)}</span></div>
-    <div class="analysis-row"><span class="name">🔥 גז (חצי) — ${prevLabel}</span><span class="val">${fmt(gasSpent/2)}</span></div>
+    <div class="nicole-month-note">${lang==='en'?`For ${prevLabel} (pay end of month)`:`עבור ${prevLabel} (לתשלום בסוף החודש)`}</div>
+    <div class="analysis-row"><span class="name">🏠 ${lang==='en'?'Rent (half)':'שכר דירה (חצי)'}</span><span class="val">${fmt(nicoleRentShare)}</span></div>
+    <div class="analysis-row"><span class="name">🏢 ${lang==='en'?'Vaad Bait (half)':'ועד בית (חצי)'}</span><span class="val">${fmt(nicoleVaadShare)}</span></div>
+    ${sharedRows.map(r=>`<div class="analysis-row"><span class="name">${r.cat?r.cat.icon+' '+r.cat.name:r.catId} (½) — ${prevLabel}</span><span class="val">${fmt(r.spent/2)}</span></div>`).join('')}
   </div>`;
+  }
 
-  html+=`<div class="analysis-card"><h3>קטגוריות מובילות — ${MONTHS_HE[currentDate.getMonth()]}</h3>`;
-  if(!sorted.length){html+='<div style="color:var(--text-muted);font-size:13px;">אין נתונים עדיין</div>';}
+  html+=`<div class="analysis-card"><h3>${lang==='en'?'Top Categories':'קטגוריות מובילות'} — ${MONTHS()[currentDate.getMonth()]}</h3>`;
+  if(!sorted.length){html+=`<div style="color:var(--text-muted);font-size:13px;">${lang==='en'?'No data yet':'אין נתונים עדיין'}</div>`;}
   else{sorted.forEach(([catId,val])=>{
-    const cat=CATEGORIES.find(c=>c.id===catId);
+    const cat=getAllCats().find(c=>c.id===catId);
     html+=`<div class="analysis-row"><div><div class="name">${cat?cat.icon+' '+cat.name:catId}</div>
       <div class="top-cat-bar" style="width:${Math.round((val/maxVal)*100)}%"></div></div>
       <div class="val">${fmt(val)}</div></div>`;
@@ -778,7 +965,7 @@ function renderWealthChart(){
   if(wealthChart){wealthChart.destroy();wealthChart=null;}
   const year=wealthDate.getFullYear();
   const keys=getYearMonthKeys(year);
-  const labels=keys.map(k=>MONTHS_HE[parseInt(k.split('-')[1])].slice(0,3));
+  const labels=keys.map(k=>MONTHS()[parseInt(k.split('-')[1])].slice(0,3));
   const totals=keys.map(k=>getWealthTotal(k));
   if(totals.every(v=>v===0))return;
   const ctx=document.getElementById('wealthChart').getContext('2d');
@@ -795,7 +982,7 @@ function renderIncomeExpenseChart(){
   if(incomeExpenseChart){incomeExpenseChart.destroy();incomeExpenseChart=null;}
   const year=currentYear();
   const keys=getYearMonthKeys(year);
-  const labels=keys.map(k=>MONTHS_HE[parseInt(k.split('-')[1])].slice(0,3));
+  const labels=keys.map(k=>MONTHS()[parseInt(k.split('-')[1])].slice(0,3));
   const net=getNet();
   const incomes=keys.map(()=>net>0?net:0);
   const expenses=keys.map(k=>getTotalSpentInKey(k,true));
@@ -804,8 +991,8 @@ function renderIncomeExpenseChart(){
   incomeExpenseChart=new Chart(ctx,{
     type:'bar',
     data:{labels,datasets:[
-      {label:'הכנסה נטו',data:incomes,backgroundColor:'rgba(59,130,246,0.7)',borderRadius:4},
-      {label:'הוצאות',data:expenses,backgroundColor:'rgba(239,68,68,0.7)',borderRadius:4}
+      {label:lang==='en'?'Net Income':'הכנסה נטו',data:incomes,backgroundColor:'rgba(59,130,246,0.7)',borderRadius:4},
+      {label:lang==='en'?'Expenses':'הוצאות',data:expenses,backgroundColor:'rgba(239,68,68,0.7)',borderRadius:4}
     ]},
     options:{responsive:true,plugins:{legend:{labels:{color:'#9ca3af',font:{size:10},boxWidth:10}}},
       scales:{x:{ticks:{color:'#6b7280',font:{size:9}},grid:{color:'rgba(46,51,71,0.6)'}},
@@ -816,9 +1003,9 @@ function renderIncomeExpenseChart(){
 function renderStackedBarChart(canvasId, chartRef, catIds, year){
   if(chartRef){chartRef.destroy();}
   const keys=getYearMonthKeys(year);
-  const labels=keys.map(k=>MONTHS_HE[parseInt(k.split('-')[1])].slice(0,3));
+  const labels=keys.map(k=>MONTHS()[parseInt(k.split('-')[1])].slice(0,3));
   const colors=['rgba(245,158,11,0.8)','rgba(239,68,68,0.8)','rgba(59,130,246,0.8)','rgba(16,185,129,0.8)','rgba(139,92,246,0.8)'];
-  const cats=catIds.map(id=>CATEGORIES.find(c=>c.id===id)).filter(Boolean);
+  const cats=catIds.map(id=>getAllCats().find(c=>c.id===id)).filter(Boolean);
   const datasets=cats.map((cat,i)=>({
     label:cat.name,
     data:keys.map(k=>getCatSpentInKey(cat.id,k)),
@@ -846,7 +1033,7 @@ function populatePieSelects(){
   if(!allKeys.length)return;
   ['pieMonth1','pieMonth2'].forEach((id,i)=>{
     const el=document.getElementById(id), cur=el.value;
-    el.innerHTML='<option value="">בחר חודש</option>'+allKeys.map(k=>`<option value="${k}">${keyToLabel(k)}</option>`).join('');
+    el.innerHTML=`<option value="">${lang==='en'?'Select month':'בחר חודש'}</option>`+allKeys.map(k=>`<option value="${k}">${keyToLabel(k)}</option>`).join('');
     if(cur&&allKeys.includes(cur))el.value=cur;
     else if(i===0&&allKeys[0])el.value=allKeys[0];
     else if(i===1&&allKeys[1])el.value=allKeys[1];
@@ -854,7 +1041,7 @@ function populatePieSelects(){
 }
 function buildPieData(key){
   const txs=getExpensesForKey(key), groups={};
-  txs.forEach(tx=>{const cat=CATEGORIES.find(c=>c.id===tx.catId);const g=cat?cat.group:'אחר';groups[g]=(groups[g]||0)+tx.amount;});
+  txs.forEach(tx=>{const cat=getAllCats().find(c=>c.id===tx.catId);const g=cat?cat.group:(lang==='en'?'Other':'אחר');groups[g]=(groups[g]||0)+tx.amount;});
   const sorted=Object.entries(groups).filter(([,v])=>v>0).sort((a,b)=>b[1]-a[1]);
   return{labels:sorted.map(([k])=>k),data:sorted.map(([,v])=>v)};
 }
@@ -868,7 +1055,7 @@ function renderPieCharts(){
   row.innerHTML=keys.map((k,i)=>`<div class="pie-card"><h4>${keyToLabel(k)}</h4><canvas id="pieCanvas${i}" width="130" height="130"></canvas><div class="pie-legend" id="pieLegend${i}"></div></div>`).join('');
   keys.forEach((k,i)=>{
     const pd=buildPieData(k);
-    if(!pd.data.length){document.getElementById(`pieCanvas${i}`).closest('.pie-card').innerHTML=`<div class="pie-empty">אין נתונים</div>`;return;}
+    if(!pd.data.length){document.getElementById(`pieCanvas${i}`).closest('.pie-card').innerHTML=`<div class="pie-empty">${lang==='en'?'No data':'אין נתונים'}</div>`;return;}
     const ctx=document.getElementById(`pieCanvas${i}`).getContext('2d');
     const colors=pd.labels.map((_,j)=>PIE_COLORS[j%PIE_COLORS.length]);
     const total=pd.data.reduce((a,b)=>a+b,0);
@@ -884,10 +1071,10 @@ function renderPieCharts(){
 // ── Wealth modal ─────────────────────────────────────────
 function openWealthModal(){
   const key=getMonthKey(wealthDate);
-  document.getElementById('wealthModalTitle').textContent=`יתרות — ${keyToLabel(key)}`;
+  document.getElementById('wealthModalTitle').textContent=`${lang==='en'?'Assets':'יתרות'} — ${keyToLabel(key)}`;
   const acc=getWealthForKey(key);
   document.getElementById('wealthInputs').innerHTML=WEALTH_ACCOUNTS.map(a=>`
-    <div class="form-label">${a.icon} ${a.name}</div>
+    <div class="form-label">${a.icon} ${lang==='en'?a.nameEn:a.name}</div>
     <div class="currency-row">
       <input type="number" class="form-input" id="wealthInput_${a.id}" value="${acc[a.id]||''}" placeholder="0" inputmode="decimal" style="margin-bottom:8px">
       <span class="currency-symbol">₪</span>
@@ -916,9 +1103,62 @@ function renderSettings(){
   document.getElementById('salaryPension').value=s.pension||'';
   updateNetDisplay();
   renderCategorySettings();
+  renderNicoleSettings();
+}
+
+function renderNicoleSettings(){
   const n=getNicole();
+  const e=lang==='en';
+  // Update header label with current name
+  document.getElementById('lbl_nicoleSection').textContent=(e?'Shared with ':'שיתוף עם ')+( n.name||'Nicole');
+  // Toggle button label
+  const toggleBtn=document.getElementById('nicoleToggleBtn');
+  const bodyEl=document.getElementById('nicoleSectionBody');
+  const isVisible=n.visible!==false;
+  toggleBtn.textContent=isVisible?(e?'Hide':'הסתר'):(e?'Show':'הצג');
+  bodyEl.style.display=isVisible?'':'none';
+  // Inputs
   document.getElementById('nicoleRent').value=n.rent||'';
   document.getElementById('nicoleVaad').value=n.vaad||'';
+  // Category picker
+  const sharedCats=n.sharedCats||[];
+  const allCats=getAllCats();
+  let html='';
+  allCats.forEach(cat=>{
+    const on=sharedCats.includes(cat.id);
+    html+=`<div class="nicole-cat-row">
+      <span>${cat.icon} ${cat.name}</span>
+      <div class="toggle-check ${on?'on':''}" onclick="toggleNicoleCat('${cat.id}')">${on?'✓':''}</div>
+    </div>`;
+  });
+  document.getElementById('nicoleCatsList').innerHTML=html;
+}
+
+function toggleNicoleVisible(){
+  const n=getNicole();
+  n.visible=n.visible===false?true:false;
+  lsSet('nicole',n);
+  renderNicoleSettings();
+}
+
+function openRenameNicole(){
+  const n=getNicole();
+  openTextInput(lang==='en'?'Rename':'שנה שם', n.name||'Nicole', val=>{
+    n.name=val;
+    lsSet('nicole',n);
+    renderNicoleSettings();
+    renderStaticUI();
+  });
+}
+
+function toggleNicoleCat(catId){
+  const n=getNicole();
+  const sharedCats=n.sharedCats||[];
+  const idx=sharedCats.indexOf(catId);
+  if(idx>=0)sharedCats.splice(idx,1); else sharedCats.push(catId);
+  n.sharedCats=sharedCats;
+  lsSet('nicole',n);
+  renderNicoleSettings();
 }
 
 function renderCategorySettings(){
@@ -936,7 +1176,7 @@ function renderCategorySettings(){
     html+=`<div class="cat-settings-group">
       <div class="cat-settings-group-header">
         <input value="${group}" onchange="renameGroup('${group}',this.value)" style="background:transparent;border:none;color:var(--amber);font-family:'Heebo',sans-serif;font-size:12px;font-weight:700;text-transform:uppercase;letter-spacing:0.8px;flex:1;outline:none;width:100%;">
-        <button class="btn-icon add" onclick="addCatToGroup('${group}')" title="הוסף קטגוריה">＋</button>
+        <button class="btn-icon add" onclick="addCatToGroup('${group}')" title="${lang==='en'?'Add category':'הוסף קטגוריה'}">＋</button>
         ${isCustomGroup?`<button class="btn-icon" onclick="deleteGroup('${group}')" title="מחק קבוצה">🗑</button>`:''}
       </div>`;
     cats.forEach(cat=>{
@@ -952,7 +1192,7 @@ function renderCategorySettings(){
     });
     html+=`</div>`;
   }
-  html+=`<button class="btn-add-group" onclick="addNewGroup()">＋ קבוצה חדשה</button>`;
+  html+=`<button class="btn-add-group" onclick="addNewGroup()">＋ ${lang==='en'?'New Group':'קבוצה חדשה'}</button>`;
   document.getElementById('settingsList').innerHTML=html;
 }
 
@@ -968,14 +1208,16 @@ function toggleCatVisibility(catId){
 function updateBudget(catId,val){const b=getBudgets();b[catId]=parseFloat(val)||0;saveBudgets(b);render();}
 
 function addCatToGroup(group){
-  const name=prompt('שם הקטגוריה החדשה:');
-  if(!name||!name.trim())return;
-  const icon=prompt('אמוג׳י (אופציונלי):')||'📌';
-  const id='custom_'+Date.now();
-  const d=getCustomCats();
-  d.cats.push({id,name:name.trim(),icon,group,budget:0});
-  saveCustomCats(d);
-  renderSettings();
+  openTextInput(lang==='en'?'Category name:':'שם הקטגוריה:', '', name=>{
+    openTextInput(lang==='en'?'Emoji (optional):':'אמוג׳י (אופציונלי):', '📌', icon=>{
+      const d=getCustomCats();
+      const id='custom_'+Date.now();
+      d.cats.push({id,name:name.trim(),icon:icon.trim()||'📌',group});
+      saveCustomCats(d);
+      renderSettings();
+      renderBudgetView();
+    }, true);
+  });
 }
 
 function deleteCustomCat(id){
@@ -987,12 +1229,12 @@ function deleteCustomCat(id){
 }
 
 function addNewGroup(){
-  const name=prompt('שם הקבוצה החדשה:');
-  if(!name||!name.trim())return;
-  const d=getCustomCats();
-  if(!d.groups.includes(name.trim()))d.groups.push(name.trim());
-  saveCustomCats(d);
-  renderSettings();
+  openTextInput(lang==='en'?'New group name:':'שם הקבוצה החדשה:', '', name=>{
+    const d=getCustomCats();
+    if(!d.groups.includes(name.trim()))d.groups.push(name.trim());
+    saveCustomCats(d);
+    renderSettings();
+  });
 }
 
 function renameGroup(oldName,newName){
@@ -1038,7 +1280,7 @@ function setEntryType(type){
 
 function openAddModal(catId){
   isPastExpense=false; selectedCatId=catId||null;
-  document.getElementById('modalTitle').textContent='הוצאה חדשה';
+  document.getElementById('modalTitle').textContent=lang==='en'?'New Expense':'הוצאה חדשה';
   document.getElementById('monthPickerRow').style.display='none';
   document.getElementById('amountInput').value='';
   document.getElementById('noteInput').value='';
@@ -1060,7 +1302,7 @@ function openAddModal(catId){
 }
 function openAddPastModal(){
   isPastExpense=true; selectedCatId=null;
-  document.getElementById('modalTitle').textContent='הוצאה ישנה';
+  document.getElementById('modalTitle').textContent=lang==='en'?'Past Expense':'הוצאה ישנה';
   document.getElementById('selectedCatDisplay').style.display='none';
   document.getElementById('amountSection').style.display='none';
   document.getElementById('catPickerSection').style.display='block';
@@ -1119,10 +1361,12 @@ function deleteExpense(id,key){
   document.getElementById(id).addEventListener('click',function(e){if(e.target===this)this.classList.remove('open');});
 });
 
+// Apply language on startup
+renderStaticUI();
+
 render();
 
 // No service worker
-
 </script>
 </body>
 </html>
