@@ -2,7 +2,8 @@
   "name": "כסף - מעקב הוצאות",
   "short_name": "כסף",
   "description": "מעקב הוצאות אישי",
-  "start_url": "/",
+  "start_url": "/my-expenses/",
+  "scope": "/my-expenses/",
   "display": "standalone",
   "background_color": "#0f1117",
   "theme_color": "#0f1117",
@@ -11,13 +12,13 @@
   "dir": "rtl",
   "icons": [
     {
-      "src": "icon.png",
+      "src": "/my-expenses/icon.png",
       "sizes": "192x192",
       "type": "image/png",
       "purpose": "any maskable"
     },
     {
-      "src": "icon.png",
+      "src": "/my-expenses/icon.png",
       "sizes": "512x512",
       "type": "image/png",
       "purpose": "any maskable"

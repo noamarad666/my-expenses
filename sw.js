@@ -1,17 +1,20 @@
-const CACHE = 'kessef-v2';
+const CACHE = 'kessef-v3';
+const BASE = '/my-expenses';
 
-// On install — cache the main app shell
 self.addEventListener('install', e => {
   e.waitUntil(
     caches.open(CACHE).then(cache =>
-      cache.addAll(['/my-expenses/', '/my-expenses/index.html'])
-        .catch(() => cache.addAll(['/my-expenses/index.html']))
+      cache.addAll([
+        BASE + '/',
+        BASE + '/index.html',
+        BASE + '/manifest.json',
+        BASE + '/icon.png',
+      ])
     )
   );
   self.skipWaiting();
 });
 
-// On activate — delete old caches
 self.addEventListener('activate', e => {
   e.waitUntil(
     caches.keys().then(keys =>
@@ -21,21 +24,17 @@ self.addEventListener('activate', e => {
   self.clients.claim();
 });
 
-// On fetch — network first, fall back to cache
 self.addEventListener('fetch', e => {
-  // Only handle GET requests for our own pages
   if (e.request.method !== 'GET') return;
-  
   e.respondWith(
-    fetch(e.request)
-      .then(res => {
-        // Cache successful responses
+    caches.match(e.request).then(cached => {
+      const network = fetch(e.request).then(res => {
         if (res && res.status === 200) {
-          const clone = res.clone();
-          caches.open(CACHE).then(cache => cache.put(e.request, clone));
+          caches.open(CACHE).then(c => c.put(e.request, res.clone()));
         }
         return res;
-      })
-      .catch(() => caches.match(e.request))
+      }).catch(() => cached);
+      return cached || network;
+    })
   );
 });
