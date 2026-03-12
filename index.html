@@ -423,11 +423,12 @@ const CATEGORIES=[
   {id:'insurance_health', name:'ביטוח בריאות פרטי (הפניקס)',           icon:'🏥',group:'ביטוחים',      budget:60},
   {id:'insurance_accident',name:'ביטוח תאונות אישיות',                icon:'🛡️',group:'ביטוחים',      budget:0},
   {id:'insurance_life',   name:'ביטוח חיים (כלל)',                     icon:'❤️',group:'ביטוחים',      budget:90},
-  {id:'insurance_car',    name:'ביטוח לאוטו',                         icon:'🚗',group:'תחבורה',       budget:0},
-  {id:'car_payment',      name:'תשלום רכב',                            icon:'🚙',group:'תחבורה',       budget:0},
-  {id:'fuel',             name:'דלק/טעינה',                            icon:'⛽',group:'תחבורה',       budget:400},
-  {id:'parking',          name:'חניה/רישיון',                         icon:'🅿️',group:'תחבורה',       budget:100},
-  {id:'public_transport', name:'תחבורה ציבורית',                       icon:'🚌',group:'תחבורה',       budget:200},
+  {id:'insurance_car',    name:'ביטוח לאוטו',                                      icon:'🚗',group:'תחבורה',       budget:0},
+  {id:'car_test',         name:'טסט לאוטו',                                        icon:'🔍',group:'תחבורה',       budget:0},
+  {id:'fuel',             name:'דלק',                                              icon:'⛽',group:'תחבורה',       budget:0},
+  {id:'parking',          name:'חנייה ושטיפה לאוטו',                               icon:'🅿️',group:'תחבורה',      budget:0},
+  {id:'public_transport', name:'תחבורה ציבורית/מוניות/דוחות תנועה',               icon:'🚌',group:'תחבורה',       budget:0},
+  {id:'highways',         name:'כבישים מהירים',                                    icon:'🛣️',group:'תחבורה',      budget:0},
   {id:'streaming',        name:'מנויים (ספוטיפיי, נטפליקס)',           icon:'🎵',group:'בידור ומנויים',budget:100,nicoleShared:true},
   {id:'phone',            name:'חשבון טלפון',                          icon:'📱',group:'בידור ומנויים',budget:100},
   {id:'internet',         name:'אינטרנט',                              icon:'🌐',group:'בידור ומנויים',budget:100,nicoleShared:true},
@@ -448,7 +449,7 @@ const CATEGORIES=[
 ];
 
 const FOOD_CATS   = ['supermarket','restaurants','coffee','deliveries'];
-const CAR_CATS    = ['insurance_car','car_payment','fuel','parking','public_transport'];
+const CAR_CATS    = ['insurance_car','car_test','fuel','parking','public_transport','highways'];
 
 // ── State ───────────────────────────────────────────────
 let currentDate=new Date(); currentDate.setDate(1);
@@ -962,12 +963,7 @@ function deleteExpense(id,key){
 
 render();
 
-// ── PWA Service Worker ──
-if('serviceWorker' in navigator){
-  window.addEventListener('load',()=>{
-    navigator.serviceWorker.register('sw.js').catch(()=>{});
-  });
-}
+// Service worker disabled
 
 // PWA install prompt
 let deferredPrompt;
