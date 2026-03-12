@@ -1,19 +1,17 @@
-const CACHE = 'kessef-v1';
-const ASSETS = [
-  '/',
-  '/index.html',
-  '/manifest.json',
-  'https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;700;900&display=swap',
-  'https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js'
-];
+const CACHE = 'kessef-v2';
 
+// On install — cache the main app shell
 self.addEventListener('install', e => {
   e.waitUntil(
-    caches.open(CACHE).then(cache => cache.addAll(ASSETS).catch(() => {}))
+    caches.open(CACHE).then(cache =>
+      cache.addAll(['/my-expenses/', '/my-expenses/index.html'])
+        .catch(() => cache.addAll(['/my-expenses/index.html']))
+    )
   );
   self.skipWaiting();
 });
 
+// On activate — delete old caches
 self.addEventListener('activate', e => {
   e.waitUntil(
     caches.keys().then(keys =>
@@ -23,16 +21,21 @@ self.addEventListener('activate', e => {
   self.clients.claim();
 });
 
+// On fetch — network first, fall back to cache
 self.addEventListener('fetch', e => {
+  // Only handle GET requests for our own pages
+  if (e.request.method !== 'GET') return;
+  
   e.respondWith(
-    caches.match(e.request).then(cached => {
-      return cached || fetch(e.request).then(res => {
-        if (res && res.status === 200 && e.request.method === 'GET') {
+    fetch(e.request)
+      .then(res => {
+        // Cache successful responses
+        if (res && res.status === 200) {
           const clone = res.clone();
           caches.open(CACHE).then(cache => cache.put(e.request, clone));
         }
         return res;
-      }).catch(() => cached);
-    })
+      })
+      .catch(() => caches.match(e.request))
   );
 });
