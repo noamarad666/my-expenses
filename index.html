@@ -553,9 +553,12 @@ function getExpensesForKey(key){return getData()[key]||[];}
 function getMonthExpenses(){return getExpensesForKey(getMonthKey(currentDate));}
 function getCatSpentInKey(catId,key){return getExpensesForKey(key).filter(t=>t.catId===catId).reduce((s,t)=>s+t.amount,0);}
 function getCatSpent(catId){return getCatSpentInKey(catId,getMonthKey(currentDate));}
-function getTotalSpentInKey(key){return getExpensesForKey(key).reduce((s,t)=>s+t.amount,0);}
-function getTotalSpent(){return getTotalSpentInKey(getMonthKey(currentDate));}
-function getTotalBudget(){return getAllCats().reduce((s,c)=>s+getCatBudget(c.id),0);}
+function getTotalSpentInKey(key,visibleOnly=false){
+  const hidden=visibleOnly?getHiddenCats():[];
+  return getExpensesForKey(key).filter(t=>!hidden.includes(t.catId)).reduce((s,t)=>s+t.amount,0);
+}
+function getTotalSpent(){return getTotalSpentInKey(getMonthKey(currentDate),true);}
+function getTotalBudget(){const hidden=getHiddenCats();return getAllCats().filter(c=>!hidden.includes(c.id)).reduce((s,c)=>s+getCatBudget(c.id),0);}
 function fmt(n){return '₪'+Math.round(n).toLocaleString('he-IL');}
 function pctClass(p){return p>=100?'over':p>=80?'warn':'ok';}
 function getAllMonthKeys(){const d=getData();return Object.keys(d).filter(k=>d[k]&&d[k].length).sort().reverse();}
@@ -697,7 +700,7 @@ function renderAnalysisView(){
 
   const container=document.getElementById('analysisContent');
   const salary=getSalary(), net=getNet();
-  const txs=getMonthExpenses(), total=txs.reduce((s,t)=>s+t.amount,0);
+  const txs=getMonthExpenses(), total=getTotalSpent();
 
   const prevKey=getPrevMonthKey(), prevLabel=keyToLabel(prevKey);
   const nicole=getNicole();
@@ -711,8 +714,9 @@ function renderAnalysisView(){
   const gasSpent=getCatSpentInKey('gas',prevKey);
   const nicoleTotal=nicoleRentShare+nicoleVaadShare+(superSpent+streamSpent+internetSpent+electricSpent+arnonaSpent+waterSpent+gasSpent)/2;
 
+  const hidden=getHiddenCats();
   const catTotals={};
-  txs.forEach(tx=>{catTotals[tx.catId]=(catTotals[tx.catId]||0)+tx.amount;});
+  txs.filter(tx=>!hidden.includes(tx.catId)).forEach(tx=>{catTotals[tx.catId]=(catTotals[tx.catId]||0)+tx.amount;});
   const sorted=Object.entries(catTotals).sort((a,b)=>b[1]-a[1]).slice(0,5);
   const maxVal=sorted.length?sorted[0][1]:1;
 
@@ -794,7 +798,7 @@ function renderIncomeExpenseChart(){
   const labels=keys.map(k=>MONTHS_HE[parseInt(k.split('-')[1])].slice(0,3));
   const net=getNet();
   const incomes=keys.map(()=>net>0?net:0);
-  const expenses=keys.map(k=>getTotalSpentInKey(k));
+  const expenses=keys.map(k=>getTotalSpentInKey(k,true));
   if(expenses.every(v=>v===0)&&net===0)return;
   const ctx=document.getElementById('incomeExpenseChart').getContext('2d');
   incomeExpenseChart=new Chart(ctx,{
