@@ -1199,21 +1199,31 @@ function getGroupIcon(group){
   return icons[group]||'📊';
 }
 
+const GROUP_HE_TO_EN={'מזון':'Food','תחבורה':'Transportation','בית':'Home','בריאות':'Health','ביטוחים':'Insurances','בידור ומנויים':'Communication','חופשות וטיולים':'Spare Time','קניות שונות':'Spare Time','כספים':'Money Transaction'};
+const GROUP_EN_TO_HE=Object.fromEntries(Object.entries(GROUP_HE_TO_EN).map(([k,v])=>[v,k]));
+
+function getGroupDisplayName(group){
+  if(lang==='en') return GROUP_HE_TO_EN[group]||group;
+  return GROUP_EN_TO_HE[group]||group;
+}
+
 function renderCustomCharts(){
   const groups=getAnalysisCharts();
   const yr=currentYear();
+  const yearLabel=lang==='en'?'Current Year':'שנה נוכחית';
   // Chart 1
   const g1=groups[0];
-  const cats1=getAllCats().filter(c=>c.group===g1).map(c=>c.id);
+  const cats1=getAllCats().filter(c=>c.group===g1||c.group===GROUP_HE_TO_EN[g1]||c.group===GROUP_EN_TO_HE[g1]).map(c=>c.id);
   const icon1=getGroupIcon(g1);
-  const yearLabel=lang==='en'?'Current Year':'שנה נוכחית';
-  document.getElementById('lbl_customChart1').textContent=`${icon1} ${g1} — ${yearLabel}`;
+  const name1=getGroupDisplayName(g1);
+  document.getElementById('lbl_customChart1').textContent=`${icon1} ${name1} — ${yearLabel}`;
   customChart1=renderStackedBarChart('customChart1',customChart1,cats1,yr);
   // Chart 2
   const g2=groups[1];
-  const cats2=getAllCats().filter(c=>c.group===g2).map(c=>c.id);
+  const cats2=getAllCats().filter(c=>c.group===g2||c.group===GROUP_HE_TO_EN[g2]||c.group===GROUP_EN_TO_HE[g2]).map(c=>c.id);
   const icon2=getGroupIcon(g2);
-  document.getElementById('lbl_customChart2').textContent=`${icon2} ${g2} — ${yearLabel}`;
+  const name2=getGroupDisplayName(g2);
+  document.getElementById('lbl_customChart2').textContent=`${icon2} ${name2} — ${yearLabel}`;
   customChart2=renderStackedBarChart('customChart2',customChart2,cats2,yr);
 }
 
@@ -1222,7 +1232,7 @@ function renderChartGroupPicker(){
   const selected=getAnalysisCharts();
   let html='';
   allGroups.forEach(group=>{
-    const isOn=selected.includes(group);
+    const isOn=selected.includes(group)||selected.includes(GROUP_EN_TO_HE[group])||selected.includes(GROUP_HE_TO_EN[group]);
     const icon=getGroupIcon(group);
     html+=`<div class="nicole-cat-row" onclick="toggleChartGroup('${group}')">
       <span>${icon} ${group}</span>
