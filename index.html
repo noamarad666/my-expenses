@@ -366,11 +366,7 @@
         <div class="wealth-total" id="wealthTotal">—</div>
         <div class="wealth-delta flat" id="wealthDelta">—</div>
       </div>
-      <div class="wealth-month-nav">
-        <button onclick="changeWealthMonth(-1)">‹</button>
-        <div class="wealth-month-label" id="wealthMonthLabel"></div>
-        <button onclick="changeWealthMonth(1)">›</button>
-      </div>
+
     </div>
     <div id="wealthBreakdown"></div>
     <button class="wealth-edit-btn" id="btn_wealthEdit" onclick="openWealthModal()">✏️ עדכן יתרות לחודש זה</button>
@@ -851,7 +847,6 @@ const CAR_CATS    = ['insurance_car','car_test','fuel','parking','public_transpo
 
 // ── State ───────────────────────────────────────────────
 let currentDate=new Date(); currentDate.setDate(1);
-let wealthDate=new Date(); wealthDate.setDate(1);
 let selectedCatId=null, currentTab='analysis', isPastExpense=false;
 let pieCharts=[null,null], wealthChart=null, incomeExpenseChart=null, customChart1=null, customChart2=null;
 let entryType='expense';
@@ -931,7 +926,6 @@ function getYearMonthKeys(year){
 }
 
 function changeMonth(dir){currentDate.setMonth(currentDate.getMonth()+dir);render();}
-function changeWealthMonth(dir){wealthDate.setMonth(wealthDate.getMonth()+dir);renderWealthCard();renderWealthChart();}
 
 // ── Main render ─────────────────────────────────────────
 function render(){
@@ -1024,14 +1018,13 @@ function renderHistoryView(){
 
 // ── Wealth card ──────────────────────────────────────────
 function renderWealthCard(){
-  const key=getMonthKey(wealthDate);
-  document.getElementById('wealthMonthLabel').textContent=keyToLabel(key);
+  const key=getMonthKey(currentDate);
   const acc=getWealthForKey(key);
   const total=Object.values(acc).reduce((s,v)=>s+v,0);
   document.getElementById('wealthTotal').textContent=total>0?fmt(total):'—';
 
   // Delta vs previous month
-  const prevD=new Date(wealthDate); prevD.setMonth(prevD.getMonth()-1);
+  const prevD=new Date(currentDate); prevD.setMonth(prevD.getMonth()-1);
   const prevTotal=getWealthTotal(getMonthKey(prevD));
   const deltaEl=document.getElementById('wealthDelta');
   if(total>0&&prevTotal>0){
@@ -1138,7 +1131,7 @@ function currentYear(){return currentDate.getFullYear();}
 
 function renderWealthChart(){
   if(wealthChart){wealthChart.destroy();wealthChart=null;}
-  const year=wealthDate.getFullYear();
+  const year=currentDate.getFullYear();
   const keys=getYearMonthKeys(year);
   const labels=keys.map(k=>MONTHS()[parseInt(k.split('-')[1])].slice(0,3));
   const totals=keys.map(k=>getWealthTotal(k));
@@ -1323,7 +1316,7 @@ function renderPieCharts(){
 
 // ── Wealth modal ─────────────────────────────────────────
 function openWealthModal(){
-  const key=getMonthKey(wealthDate);
+  const key=getMonthKey(currentDate);
   document.getElementById('wealthModalTitle').textContent=`${lang==='en'?'Assets':'יתרות'} — ${keyToLabel(key)}`;
   const acc=getWealthForKey(key);
   document.getElementById('wealthInputs').innerHTML=WEALTH_ACCOUNTS.map(a=>`
@@ -1335,7 +1328,7 @@ function openWealthModal(){
   document.getElementById('wealthModal').classList.add('open');
 }
 function saveWealth(){
-  const key=getMonthKey(wealthDate);
+  const key=getMonthKey(currentDate);
   const d=getWealthData();
   const acc={};
   WEALTH_ACCOUNTS.forEach(a=>{
