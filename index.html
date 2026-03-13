@@ -427,6 +427,13 @@
         </div>
         <span class="smi-arrow">›</span>
       </div>
+      <div class="settings-menu-item" onclick="openSettingsPanel('backup')">
+        <div class="smi-left">
+          <div class="smi-icon">💾</div>
+          <div><div class="smi-text" id="smi_backup">גיבוי ושחזור</div><div class="smi-sub" id="smi_backup_sub">ייצוא ויבוא נתונים</div></div>
+        </div>
+        <span class="smi-arrow">›</span>
+      </div>
     </div>
 
     <!-- SALARY panel -->
@@ -457,7 +464,8 @@
 
     <!-- SHARED panel -->
     <div class="settings-panel" id="settingsPanelShared">
-      <button class="settings-back" onclick="openSettingsPanel('menu')">‹ <span id="lbl_backBtn2">חזרה</span></button> style="display:flex;align-items:center;justify-content:space-between;padding:0 4px 8px;">
+      <button class="settings-back" onclick="openSettingsPanel('menu')">‹ <span id="lbl_backBtn2">חזרה</span></button>
+      <div id="nicoleSectionHeader" style="display:flex;align-items:center;justify-content:space-between;padding:0 4px 8px;">
         <div class="section-title" id="lbl_nicoleSection" style="padding:0;">שיתוף עם ניקול</div>
         <div style="display:flex;align-items:center;gap:8px;">
           <button onclick="openRenameNicole()" style="background:none;border:none;color:var(--text-muted);font-size:16px;cursor:pointer;">✏️</button>
@@ -480,7 +488,8 @@
 
     <!-- THEME panel -->
     <div class="settings-panel" id="settingsPanelTheme">
-      <button class="settings-back" onclick="openSettingsPanel('menu')">‹ <span id="lbl_backBtn3">חזרה</span></button>ערכת צבעים</div>
+      <button class="settings-back" onclick="openSettingsPanel('menu')">‹ <span id="lbl_backBtn3">חזרה</span></button>
+      <div class="section-title" id="lbl_themeSection">ערכת צבעים</div>
       <div class="theme-grid" id="themeGrid"></div>
     </div>
 
@@ -490,6 +499,34 @@
       <div class="section-title" id="lbl_chartsSection">גרפי ניתוח — בחר 2 קבוצות</div>
       <div style="font-size:12px;color:var(--text-muted);padding:0 4px 10px;" id="lbl_chartsSub">בחר בדיוק 2 קבוצות קטגוריות שיוצגו כגרפים בלשונית הניתוח</div>
       <div id="chartGroupPicker"></div>
+    </div>
+
+    <!-- BACKUP panel -->
+    <div class="settings-panel" id="settingsPanelBackup">
+      <button class="settings-back" onclick="openSettingsPanel('menu')">‹ <span id="lbl_backBtn5">חזרה</span></button>
+      <div class="section-title" id="lbl_backupSection">גיבוי ושחזור</div>
+
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:10px;">
+        <div style="font-size:13px;font-weight:700;margin-bottom:4px;" id="lbl_exportTitle">⬇️ ייצוא נתונים</div>
+        <div style="font-size:12px;color:var(--text-muted);margin-bottom:12px;" id="lbl_exportSub">שמור את כל הנתונים שלך כקובץ JSON</div>
+        <button class="btn-primary" onclick="exportData()" id="btn_export">ייצא גיבוי</button>
+        <div style="font-size:11px;color:var(--text-muted);margin-top:8px;" id="lbl_lastBackup"></div>
+      </div>
+
+      <div style="background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:16px;margin-bottom:10px;">
+        <div style="font-size:13px;font-weight:700;margin-bottom:4px;" id="lbl_importTitle">⬆️ יבוא נתונים</div>
+        <div style="font-size:12px;color:var(--text-muted);margin-bottom:12px;" id="lbl_importSub">שחזר נתונים מקובץ גיבוי</div>
+        <label class="btn-secondary" style="display:block;text-align:center;cursor:pointer;" id="btn_import">
+          יבא קובץ
+          <input type="file" accept=".json" onchange="importData(event)" style="display:none;">
+        </label>
+      </div>
+
+      <div style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);border-radius:14px;padding:16px;">
+        <div style="font-size:13px;font-weight:700;margin-bottom:4px;color:var(--red);" id="lbl_resetTitle">🗑️ איפוס נתונים</div>
+        <div style="font-size:12px;color:var(--text-muted);margin-bottom:12px;" id="lbl_resetSub">מחק את כל הנתונים לחלוטין</div>
+        <button onclick="resetAllData()" style="background:rgba(239,68,68,0.15);border:1px solid var(--red);color:var(--red);border-radius:10px;padding:10px;width:100%;font-family:'Heebo',sans-serif;font-size:14px;font-weight:700;cursor:pointer;" id="btn_reset">איפוס מלא</button>
+      </div>
     </div>
 
     <button class="btn-secondary" style="margin-top:16px;width:100%" id="btn_closeSettings" onclick="document.getElementById('settingsModal').classList.remove('open')">סגור</button>
@@ -592,7 +629,19 @@ function renderStaticUI(){
   const smiCharts=document.getElementById('smi_charts');if(smiCharts)smiCharts.textContent=e?'Analysis Charts':'גרפי ניתוח';
   const smiChartsSub=document.getElementById('smi_charts_sub');if(smiChartsSub)smiChartsSub.textContent=e?'Choose 2 category groups':'בחר 2 קטגוריות גדולות';
   const lbCharts=document.getElementById('lbl_chartsSection');if(lbCharts)lbCharts.textContent=e?'Analysis Charts — Pick 2 groups':'גרפי ניתוח — בחר 2 קבוצות';
-  ['lbl_backBtn','lbl_backBtn2','lbl_backBtn3','lbl_backBtn4'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent=e?'Back':'חזרה';});
+  const smiBackup=document.getElementById('smi_backup');if(smiBackup)smiBackup.textContent=e?'Backup & Restore':'גיבוי ושחזור';
+  const smiBackupSub=document.getElementById('smi_backup_sub');if(smiBackupSub)smiBackupSub.textContent=e?'Export & import data':'ייצוא ויבוא נתונים';
+  const lbBackup=document.getElementById('lbl_backupSection');if(lbBackup)lbBackup.textContent=e?'Backup & Restore':'גיבוי ושחזור';
+  const lbExpTitle=document.getElementById('lbl_exportTitle');if(lbExpTitle)lbExpTitle.textContent=e?'⬇️ Export Data':'⬇️ ייצוא נתונים';
+  const lbExpSub=document.getElementById('lbl_exportSub');if(lbExpSub)lbExpSub.textContent=e?'Save all your data as a JSON file':'שמור את כל הנתונים שלך כקובץ JSON';
+  const btnExp=document.getElementById('btn_export');if(btnExp)btnExp.textContent=e?'Export Backup':'ייצא גיבוי';
+  const lbImpTitle=document.getElementById('lbl_importTitle');if(lbImpTitle)lbImpTitle.textContent=e?'⬆️ Import Data':'⬆️ יבוא נתונים';
+  const lbImpSub=document.getElementById('lbl_importSub');if(lbImpSub)lbImpSub.textContent=e?'Restore from a backup file':'שחזר נתונים מקובץ גיבוי';
+  const btnImp=document.getElementById('btn_import');if(btnImp)btnImp.childNodes[0].textContent=e?'Import File ':'יבא קובץ ';
+  const lbRstTitle=document.getElementById('lbl_resetTitle');if(lbRstTitle)lbRstTitle.textContent=e?'🗑️ Reset Data':'🗑️ איפוס נתונים';
+  const lbRstSub=document.getElementById('lbl_resetSub');if(lbRstSub)lbRstSub.textContent=e?'Delete all data permanently':'מחק את כל הנתונים לחלוטין';
+  const btnRst=document.getElementById('btn_reset');if(btnRst)btnRst.textContent=e?'Full Reset':'איפוס מלא';
+  ['lbl_backBtn','lbl_backBtn2','lbl_backBtn3','lbl_backBtn4','lbl_backBtn5'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent=e?'Back':'חזרה'});
   renderCustomCharts();
   const smiSalary=document.getElementById('smi_salary');if(smiSalary)smiSalary.textContent=e?'Salary & Income':'משכורת והכנסות';
   const smiSalarySub=document.getElementById('smi_salary_sub');if(smiSalarySub)smiSalarySub.textContent=e?'Gross, taxes, deductions':'ברוטו, מיסים, ניכויים';
@@ -1503,6 +1552,100 @@ function openSettingsPanel(panel){
   else if(panel==='shared'){document.getElementById('settingsPanelShared').classList.add('active');renderSettings();}
   else if(panel==='theme'){document.getElementById('settingsPanelTheme').classList.add('active');renderThemeGrid();}
   else if(panel==='charts'){document.getElementById('settingsPanelCharts').classList.add('active');renderChartGroupPicker();}
+  else if(panel==='backup'){document.getElementById('settingsPanelBackup').classList.add('active');updateLastBackupLabel();}
+}
+
+// ── Backup / Restore ─────────────────────────────────────
+function getAllAppData(){
+  return {
+    version:1,
+    exported:new Date().toISOString(),
+    expenses:    ls('expenses_data',{}),
+    budgets:     ls('budgets',{}),
+    salary:      ls('salary',{}),
+    nicole:      getNicole(),
+    wealth:      ls('wealth_data',{}),
+    hidden:      getHiddenCats(),
+    custom:      getCustomCats(),
+    lang:        lang,
+    theme:       localStorage.getItem('app_theme')||'dark',
+    analysisCharts: getAnalysisCharts(),
+  };
+}
+
+function exportData(){
+  const data=getAllAppData();
+  const json=JSON.stringify(data,null,2);
+  const blob=new Blob([json],{type:'application/json'});
+  const url=URL.createObjectURL(blob);
+  const a=document.createElement('a');
+  const date=new Date().toISOString().slice(0,10);
+  a.href=url; a.download=`money-backup-${date}.json`;
+  a.click(); URL.revokeObjectURL(url);
+  localStorage.setItem('last_backup',new Date().toISOString());
+  updateLastBackupLabel();
+  // Schedule next reminder in 30 days
+  localStorage.setItem('next_backup_reminder', Date.now()+(30*24*60*60*1000));
+}
+
+function updateLastBackupLabel(){
+  const el=document.getElementById('lbl_lastBackup');
+  if(!el)return;
+  const last=localStorage.getItem('last_backup');
+  if(!last){el.textContent=lang==='en'?'No backup yet':'לא בוצע גיבוי עדיין';return;}
+  const d=new Date(last);
+  const days=Math.floor((Date.now()-d)/86400000);
+  const str=days===0?(lang==='en'?'Today':'היום'):days===1?(lang==='en'?'Yesterday':'אתמול'):(lang==='en'?`${days} days ago`:`לפני ${days} ימים`);
+  el.textContent=(lang==='en'?'Last backup: ':'גיבוי אחרון: ')+str;
+}
+
+function importData(event){
+  const file=event.target.files[0];
+  if(!file)return;
+  const reader=new FileReader();
+  reader.onload=e=>{
+    try{
+      const data=JSON.parse(e.target.result);
+      if(!data.version||!data.expenses)throw new Error('Invalid file');
+      const msg=lang==='en'?'This will replace ALL your current data. Are you sure?':'זה יחליף את כל הנתונים שלך. בטוח?';
+      if(!confirm(msg))return;
+      lsSet('expenses_data',data.expenses);
+      lsSet('budgets',data.budgets||{});
+      lsSet('salary',data.salary||{});
+      lsSet('nicole',data.nicole||{});
+      lsSet('wealth_data',data.wealth||{});
+      saveHiddenCats(data.hidden||[]);
+      saveCustomCats(data.custom||{cats:[],groups:[]});
+      if(data.lang){lang=data.lang;localStorage.setItem('app_lang',lang);}
+      if(data.theme)applyTheme(data.theme);
+      if(data.analysisCharts)saveAnalysisCharts(data.analysisCharts);
+      localStorage.setItem('last_backup',new Date().toISOString());
+      renderStaticUI(); render();
+      document.getElementById('settingsModal').classList.remove('open');
+      alert(lang==='en'?'Data restored successfully ✓':'הנתונים שוחזרו בהצלחה ✓');
+    }catch(err){
+      alert(lang==='en'?'Invalid backup file':'קובץ גיבוי לא תקין');
+    }
+  };
+  reader.readAsText(file);
+}
+
+function resetAllData(){
+  const msg=lang==='en'?'DELETE ALL DATA? This cannot be undone!':'למחוק את כל הנתונים לצמיתות? לא ניתן לשחזר!';
+  if(!confirm(msg))return;
+  ['expenses_data','budgets','salary','nicole','wealth_data','hidden_cats','custom_cats','last_backup','next_backup_reminder','analysis_charts'].forEach(k=>localStorage.removeItem(k));
+  render(); renderStaticUI();
+  document.getElementById('settingsModal').classList.remove('open');
+}
+
+function checkBackupReminder(){
+  const next=localStorage.getItem('next_backup_reminder');
+  if(!next)return;
+  if(Date.now()>parseInt(next)){
+    const msg=lang==='en'?'💾 It\'s been 30 days since your last backup. Export now?':'💾 עברו 30 יום מאז הגיבוי האחרון. לייצא עכשיו?';
+    if(confirm(msg))exportData();
+    else localStorage.setItem('next_backup_reminder',Date.now()+(7*24*60*60*1000));
+  }
 }
 
 function openSettingsModal(){
@@ -1695,6 +1838,9 @@ if(savedTheme)applyTheme(savedTheme);
 renderStaticUI();
 
 render();
+
+// Check backup reminder after short delay
+setTimeout(checkBackupReminder, 2000);
 
 // No service worker
 </script>
