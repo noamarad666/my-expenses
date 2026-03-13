@@ -312,7 +312,6 @@
   <div class="tab" id="tab_budget" onclick="switchTab('budget')">מאזן חודשי</div>
   <div class="tab" id="tab_history" onclick="switchTab('history')">היסטוריה</div>
   <div class="tab" id="tab_saving" onclick="switchTab('saving')">חסכונות</div>
-  <div class="tab" id="tab_catbudget" onclick="switchTab('catbudget')">תקציב</div>
 </div>
 
 <!-- ANALYSIS (charts + comparison) -->
@@ -386,11 +385,6 @@
 </div>
 
 <!-- BUDGET tab (category budgets only) -->
-<div id="view-catbudget" class="view">
-  <div class="section-title" id="lbl_catsSection" style="margin-top:8px">קטגוריות — ✓ מוצג | תקציב | מחיקה</div>
-  <div id="settingsList"></div>
-</div>
-
 <!-- SETTINGS MODAL (drill-down) -->
 <div class="modal-overlay" id="settingsModal">
   <div class="modal" style="max-height:85vh;overflow-y:auto;padding-bottom:20px;">
@@ -403,6 +397,20 @@
         <div class="smi-left">
           <div class="smi-icon">💰</div>
           <div><div class="smi-text" id="smi_salary">משכורת והכנסות</div><div class="smi-sub" id="smi_salary_sub">ברוטו, מיסים, ניכויים</div></div>
+        </div>
+        <span class="smi-arrow">›</span>
+      </div>
+      <div class="settings-menu-item" onclick="openSettingsPanel('catbudget')">
+        <div class="smi-left">
+          <div class="smi-icon">🗂️</div>
+          <div><div class="smi-text" id="smi_catbudget">קטגוריות ותקציב</div><div class="smi-sub" id="smi_catbudget_sub">הצגה, תקציב לכל קטגוריה</div></div>
+        </div>
+        <span class="smi-arrow">›</span>
+      </div>
+      <div class="settings-menu-item" onclick="openSettingsPanel('charts')">
+        <div class="smi-left">
+          <div class="smi-icon">📊</div>
+          <div><div class="smi-text" id="smi_charts">גרפי ניתוח</div><div class="smi-sub" id="smi_charts_sub">בחר 2 קטגוריות גדולות</div></div>
         </div>
         <span class="smi-arrow">›</span>
       </div>
@@ -420,13 +428,6 @@
         </div>
         <span class="smi-arrow">›</span>
       </div>
-      <div class="settings-menu-item" onclick="openSettingsPanel('charts')">
-        <div class="smi-left">
-          <div class="smi-icon">📊</div>
-          <div><div class="smi-text" id="smi_charts">גרפי ניתוח</div><div class="smi-sub" id="smi_charts_sub">בחר 2 קטגוריות גדולות</div></div>
-        </div>
-        <span class="smi-arrow">›</span>
-      </div>
       <div class="settings-menu-item" onclick="openSettingsPanel('backup')">
         <div class="smi-left">
           <div class="smi-icon">💾</div>
@@ -434,6 +435,13 @@
         </div>
         <span class="smi-arrow">›</span>
       </div>
+    </div>
+
+    <!-- CATBUDGET panel -->
+    <div class="settings-panel" id="settingsPanelCatbudget">
+      <button class="settings-back" onclick="openSettingsPanel('menu')">‹ <span id="lbl_backBtn6">חזרה</span></button>
+      <div class="section-title" id="lbl_catsSection">קטגוריות — ✓ מוצג | תקציב | מחיקה</div>
+      <div id="settingsList"></div>
     </div>
 
     <!-- SALARY panel -->
@@ -594,7 +602,7 @@
     <h2 id="textInputTitle">שם</h2>
     <input type="text" class="form-input" id="textInputField" style="margin-bottom:12px;">
     <button class="btn-primary" id="btn_textInputSave" onclick="confirmTextInput()">שמור</button>
-    <button class="btn-secondary" onclick="document.getElementById('textInputModal').classList.remove('open')">ביטול</button>
+    <button class="btn-secondary" id="btn_textInputCancel" onclick="document.getElementById('textInputModal').classList.remove('open')">ביטול</button>
   </div>
 </div>
 
@@ -623,7 +631,6 @@ function renderStaticUI(){
   document.getElementById('tab_budget').textContent=e?'Monthly':'מאזן חודשי';
   document.getElementById('tab_history').textContent=e?'History':'היסטוריה';
   document.getElementById('tab_saving').textContent=e?'Saving':'חסכונות';
-  document.getElementById('tab_catbudget').textContent=e?'Budget':'תקציב';
   const st=document.getElementById('lbl_settingsTitle');if(st)st.textContent=e?'⚙️ Settings':'⚙️ הגדרות';
   const cs=document.getElementById('btn_closeSettings');if(cs)cs.textContent=e?'Close':'סגור';
   const smiCharts=document.getElementById('smi_charts');if(smiCharts)smiCharts.textContent=e?'Analysis Charts':'גרפי ניתוח';
@@ -641,7 +648,12 @@ function renderStaticUI(){
   const lbRstTitle=document.getElementById('lbl_resetTitle');if(lbRstTitle)lbRstTitle.textContent=e?'🗑️ Reset Data':'🗑️ איפוס נתונים';
   const lbRstSub=document.getElementById('lbl_resetSub');if(lbRstSub)lbRstSub.textContent=e?'Delete all data permanently':'מחק את כל הנתונים לחלוטין';
   const btnRst=document.getElementById('btn_reset');if(btnRst)btnRst.textContent=e?'Full Reset':'איפוס מלא';
-  ['lbl_backBtn','lbl_backBtn2','lbl_backBtn3','lbl_backBtn4','lbl_backBtn5'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent=e?'Back':'חזרה'});
+  ['lbl_backBtn','lbl_backBtn2','lbl_backBtn3','lbl_backBtn4','lbl_backBtn5','lbl_backBtn6'].forEach(id=>{const el=document.getElementById(id);if(el)el.textContent=e?'Back':'חזרה';});
+  const btnTIS=document.getElementById('btn_textInputSave');if(btnTIS)btnTIS.textContent=e?'Save':'שמור';
+  const btnTIC=document.getElementById('btn_textInputCancel');if(btnTIC)btnTIC.textContent=e?'Cancel':'ביטול';
+  const smiCatbudget=document.getElementById('smi_catbudget');if(smiCatbudget)smiCatbudget.textContent=e?'Categories & Budget':'קטגוריות ותקציב';
+  const smiCatbudgetSub=document.getElementById('smi_catbudget_sub');if(smiCatbudgetSub)smiCatbudgetSub.textContent=e?'Visibility & per-category budget':'הצגה, תקציב לכל קטגוריה';
+  const lbCats=document.getElementById('lbl_catsSection');if(lbCats)lbCats.textContent=e?'Categories — ✓ show | budget | delete':'קטגוריות — ✓ מוצג | תקציב | מחיקה';
   renderCustomCharts();
   const smiSalary=document.getElementById('smi_salary');if(smiSalary)smiSalary.textContent=e?'Salary & Income':'משכורת והכנסות';
   const smiSalarySub=document.getElementById('smi_salary_sub');if(smiSalarySub)smiSalarySub.textContent=e?'Gross, taxes, deductions':'ברוטו, מיסים, ניכויים';
@@ -1500,13 +1512,12 @@ function deleteGroup(group){
 // ── Tab switching ────────────────────────────────────────
 function switchTab(tab){
   currentTab=tab;
-  const tabIds=['analysis','budget','history','saving','catbudget'];
+  const tabIds=['analysis','budget','history','saving'];
   document.querySelectorAll('.tab:not(.gear-tab)').forEach((t,i)=>{t.classList.toggle('active',tabIds[i]===tab);});
   document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
   document.getElementById('view-'+tab).classList.add('active');
   if(tab==='analysis'){renderAnalysisView();populatePieSelects();renderPieCharts();}
   if(tab==='saving'){renderSavingView();}
-  if(tab==='catbudget'){renderCategorySettings();}
 }
 
 // ── Settings drill-down ───────────────────────────────────
@@ -1559,6 +1570,7 @@ function openSettingsPanel(panel){
   document.querySelectorAll('.settings-panel').forEach(p=>p.classList.remove('active'));
   if(panel==='menu') document.getElementById('settingsMenu').classList.add('active');
   else if(panel==='salary'){document.getElementById('settingsPanelSalary').classList.add('active');renderSettings();}
+  else if(panel==='catbudget'){document.getElementById('settingsPanelCatbudget').classList.add('active');renderCategorySettings();}
   else if(panel==='shared'){document.getElementById('settingsPanelShared').classList.add('active');renderSettings();}
   else if(panel==='theme'){document.getElementById('settingsPanelTheme').classList.add('active');renderThemeGrid();}
   else if(panel==='charts'){document.getElementById('settingsPanelCharts').classList.add('active');renderChartGroupPicker();}
