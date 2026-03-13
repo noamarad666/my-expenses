@@ -580,6 +580,36 @@
   </div>
 </div>
 
+<!-- SALARY OVERRIDE MODAL -->
+<div class="modal-overlay" id="salaryOverrideModal">
+  <div class="modal">
+    <div class="modal-handle"></div>
+    <h2 id="salaryOverrideTitle">משכורת לחודש זה</h2>
+    <div class="settings-row">
+      <label id="lbl_ovGross">ברוטו חודשי (₪)</label>
+      <input type="number" id="ovGross" placeholder="0">
+    </div>
+    <div class="settings-row">
+      <label id="lbl_ovTax">מיסים / ניכויים (₪)</label>
+      <input type="number" id="ovTax" placeholder="0">
+    </div>
+    <div class="settings-row">
+      <label id="lbl_ovKeren">קרן השתלמות (₪)</label>
+      <input type="number" id="ovKeren" placeholder="0">
+    </div>
+    <div class="settings-row">
+      <label id="lbl_ovPension">פנסיה (₪)</label>
+      <input type="number" id="ovPension" placeholder="0">
+    </div>
+    <div class="settings-row" style="background:rgba(139,92,246,0.08);border-color:rgba(139,92,246,0.3)">
+      <label style="color:var(--purple);font-weight:600" id="lbl_ovNet">נטו</label>
+      <span id="ovNetDisplay" style="font-size:16px;font-weight:700;color:var(--purple)">₪0</span>
+    </div>
+    <button class="btn-primary" id="btn_ovSave" onclick="saveSalaryOverride()">שמור</button>
+    <button class="btn-secondary" id="btn_ovCancel" onclick="document.getElementById('salaryOverrideModal').classList.remove('open')">ביטול</button>
+  </div>
+</div>
+
 <!-- WEALTH UPDATE MODAL -->
 <div class="modal-overlay" id="wealthModal">
   <div class="modal">
@@ -867,16 +897,51 @@ function saveNicole(){
   n.vaad=parseFloat(document.getElementById('nicoleVaad').value)||0;
   lsSet('nicole',n);
 }
-function getSalary()  {return ls('salary',{gross:0,tax:0,keren:0,pension:0});}
-function saveSalary() {
-  lsSet('salary',{gross:parseFloat(document.getElementById('salaryGross').value)||0,
-                  tax:parseFloat(document.getElementById('salaryTax').value)||0,
-                  keren:parseFloat(document.getElementById('salaryKeren').value)||0,
-                  pension:parseFloat(document.getElementById('salaryPension').value)||0});
+function getSalaryDefaults(){return ls('salary',{gross:0,tax:0,keren:0,pension:0});}
+function getSalaryOverrides(){return ls('salary_overrides',{});}
+function getSalary(){
+  const key=getMonthKey(currentDate);
+  const overrides=getSalaryOverrides();
+  if(overrides[key])return overrides[key];
+  return getSalaryDefaults();
+}
+function isCurrentMonthDefault(){
+  const key=getMonthKey(currentDate);
+  const overrides=getSalaryOverrides();
+  return !overrides[key];
+}
+function saveSalary(){
+  const val={
+    gross:parseFloat(document.getElementById('salaryGross').value)||0,
+    tax:  parseFloat(document.getElementById('salaryTax').value)||0,
+    keren:parseFloat(document.getElementById('salaryKeren').value)||0,
+    pension:parseFloat(document.getElementById('salaryPension').value)||0
+  };
+  const now=new Date(); now.setDate(1);
+  const isCurrentMonth=getMonthKey(currentDate)===getMonthKey(now);
+  if(isCurrentMonth){
+    // Save as default
+    lsSet('salary',val);
+    // Also clear any override for this month
+    const overrides=getSalaryOverrides();
+    delete overrides[getMonthKey(currentDate)];
+    lsSet('salary_overrides',overrides);
+  } else {
+    // Save as override for this specific month
+    const overrides=getSalaryOverrides();
+    overrides[getMonthKey(currentDate)]=val;
+    lsSet('salary_overrides',overrides);
+  }
   updateNetDisplay(); render();
 }
-function updateNetDisplay(){const s=getSalary();document.getElementById('netDisplay').textContent=fmt(s.gross-s.tax-s.keren-s.pension);}
-function getNet(){const s=getSalary();return s.gross-s.tax-s.keren-s.pension;}
+function clearSalaryOverride(){
+  const overrides=getSalaryOverrides();
+  delete overrides[getMonthKey(currentDate)];
+  lsSet('salary_overrides',overrides);
+  renderSettings(); render();
+}
+function updateNetDisplay(){const s=getSalary();document.getElementById('netDisplay').textContent=fmt(s.gross-s.tax-(s.keren||0)-(s.pension||0));}
+function getNet(){const s=getSalary();return s.gross-s.tax-(s.keren||0)-(s.pension||0);}
 
 // Wealth data: {year-month: {bank:N, savings:N, ...}}
 function getWealthData(){return ls('wealth_data',{});}
@@ -946,8 +1011,8 @@ function render(){
   document.getElementById('mainBar').className=`budget-bar-fill ${cls}`;
 
   const banner=document.getElementById('alertBanner');
-  if(base>0&&pct>=100){banner.textContent=`⚠️ ${lang==='en'?`Over budget by ${fmt(spent-base)}`:`חרגת מהמאזן חודשי ב-${fmt(spent-base)}`}`;banner.className='alert-banner over';banner.style.display='block';}
-  else if(base>0&&pct>=80){banner.textContent=`🔔 ${lang==='en'?`${Math.round(pct)}% used — ${fmt(remaining)} left`:`השתמשת ב-${Math.round(pct)}% — נשאר ${fmt(remaining)}`}`;banner.className='alert-banner warn';banner.style.display='block';}
+  if(base>0&&pct>=100){banner.textContent='⚠️ '+(lang==='en'?'Over budget by '+fmt(spent-base):'חרגת מהמאזן חודשי ב-'+fmt(spent-base));banner.className='alert-banner over';banner.style.display='block';}
+  else if(base>0&&pct>=80){banner.textContent='🔔 '+(lang==='en'?Math.round(pct)+'% used — '+fmt(remaining)+' left':'השתמשת ב-'+Math.round(pct)+'% — נשאר '+fmt(remaining));banner.className='alert-banner warn';banner.style.display='block';}
   else{banner.style.display='none';}
 
   renderBudgetView();
@@ -966,7 +1031,38 @@ function renderBudgetView(){
   const groups={};
   getAllGroups().forEach(g=>{groups[g]=[];});
   allCats.forEach(c=>{if(!groups[c.group])groups[c.group]=[];groups[c.group].push(c);});
-  let html='';
+
+  // Salary override button for past months
+  const now=new Date(); now.setDate(1);
+  const isNow=getMonthKey(currentDate)===getMonthKey(now);
+  const isOverride=!isCurrentMonthDefault();
+  const e=lang==='en';
+  const monthName=`${MONTHS()[currentDate.getMonth()]} ${currentDate.getFullYear()}`;
+  let salaryBtnHtml='';
+  if(!isNow){
+    if(isOverride){
+      const s=getSalary();
+      const net=s.gross-s.tax-(s.keren||0)-(s.pension||0);
+      const overrideLabel=e?'Salary override for '+monthName:'משכורת מותאמת ל'+monthName;
+      const netLabel=(e?'Net':'נטו')+': '+fmt(net);
+      salaryBtnHtml='<div style="display:flex;align-items:center;justify-content:space-between;background:rgba(245,158,11,0.08);border:1px solid rgba(245,158,11,0.25);border-radius:12px;padding:10px 14px;margin-bottom:10px;">'
+        +'<div><div style="font-size:12px;color:var(--amber);font-weight:600;">✏️ '+overrideLabel+'</div>'
+        +'<div style="font-size:13px;font-weight:700;margin-top:2px;">'+netLabel+'</div></div>'
+        +'<div style="display:flex;gap:6px;">'
+        +'<button onclick="openSalaryOverrideModal()" style="background:var(--amber);color:#000;border:none;border-radius:8px;padding:6px 10px;font-family:Heebo,sans-serif;font-size:12px;font-weight:700;cursor:pointer;">✏️</button>'
+        +'<button onclick="clearSalaryOverride()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text-muted);border-radius:8px;padding:6px 10px;font-family:Heebo,sans-serif;font-size:12px;cursor:pointer;">✕</button>'
+        +'</div></div>';
+    } else {
+      const defaultLabel=e?'Using default salary for '+monthName:'משתמש במשכורת ברירת מחדל עבור '+monthName;
+      const overrideBtnLabel=e?'Override':'עקוף';
+      salaryBtnHtml='<div style="display:flex;align-items:center;justify-content:space-between;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:10px 14px;margin-bottom:10px;">'
+        +'<div style="font-size:12px;color:var(--text-muted);">📅 '+defaultLabel+'</div>'
+        +'<button onclick="openSalaryOverrideModal()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:6px 10px;font-family:Heebo,sans-serif;font-size:12px;font-weight:600;cursor:pointer;">'+overrideBtnLabel+'</button>'
+        +'</div>';
+    }
+  }
+
+  let html=salaryBtnHtml;
   for(const[group,cats]of Object.entries(groups)){
     const visibleCats=cats.filter(c=>!hidden.includes(c.id));
     if(!visibleCats.length)continue;
@@ -1068,14 +1164,14 @@ function renderAnalysisView(){
     html+=`<div class="salary-card">
       <h3>💜 ${lang==='en'?'Income Summary':'תמונת הכנסה'} — ${MONTHS()[currentDate.getMonth()]}</h3>
       <div class="salary-big">${fmt(net)}</div>
-      <div class="salary-sub">${lang==='en'?`Net after ${fmt(salary.tax)} taxes`:`נטו לאחר ניכוי ${fmt(salary.tax)} מיסים`}</div>
+      <div class="salary-sub">${lang==='en'?'Net after '+fmt(salary.tax)+' taxes':'נטו לאחר ניכוי '+fmt(salary.tax)+' מיסים'}</div>
       <div class="salary-breakdown">
         <div class="analysis-row"><span class="name">${lang==='en'?'Gross':'ברוטו'}</span><span class="val">${fmt(salary.gross)}</span></div>
         <div class="analysis-row"><span class="name">${lang==='en'?'Taxes':'מיסים'}</span><span class="val" style="color:var(--red)">-${fmt(salary.tax)}</span></div>
         ${salary.keren>0?`<div class="analysis-row"><span class="name">🌿 ${lang==='en'?'Education Fund (mine)':'קרן השתלמות (שלי)'}</span><span class="val" style="color:var(--teal)">-${fmt(salary.keren)}</span></div>`:''}
         ${salary.pension>0?`<div class="analysis-row"><span class="name">👴 ${lang==='en'?'Pension (mine)':'פנסיה (שלי)'}</span><span class="val" style="color:var(--teal)">-${fmt(salary.pension)}</span></div>`:''}
         <div class="analysis-row"><span class="name">${lang==='en'?'This month expenses':'הוצאות החודש'}</span><span class="val" style="color:var(--red)">-${fmt(total)}</span></div>
-        <div class="analysis-row"><span class="name" style="font-weight:600">${leftover>=0?`✅ ${lang==='en'?'Remaining':'נשאר'}`:`❌ ${lang==='en'?'Over budget':'חריגה'}`}</span>
+        <div class="analysis-row"><span class="name" style="font-weight:600">${leftover>=0?(lang==='en'?'✅ Remaining':'✅ נשאר'):(lang==='en'?'❌ Over budget':'❌ חריגה')}</span>
           <span class="val" style="color:${leftover>=0?'var(--green)':'var(--red)'};font-size:16px">${leftover>=0?fmt(leftover):'-'+fmt(Math.abs(leftover))}</span></div>
       </div></div>`;
   }
@@ -1114,7 +1210,7 @@ function renderSavingView(){
   container.innerHTML=`<div class="nicole-card">
     <h3>💙 ${nicole.name||'Nicole'}${lang==='en'?'\'s Share':' — חלק'}</h3>
     <div class="nicole-amount">${fmt(nicoleTotal)}</div>
-    <div class="nicole-month-note">${lang==='en'?`For ${prevLabel} (pay end of month)`:`עבור ${prevLabel} (לתשלום בסוף החודש)`}</div>
+    <div class="nicole-month-note">${lang==='en'?'For '+prevLabel+' (pay end of month)':'עבור '+prevLabel+' (לתשלום בסוף החודש)'}</div>
     <div class="analysis-row"><span class="name">🏠 ${lang==='en'?'Rent (half)':'שכר דירה (חצי)'}</span><span class="val">${fmt(nicoleRentShare)}</span></div>
     <div class="analysis-row"><span class="name">🏢 ${lang==='en'?'Vaad Bait (half)':'ועד בית (חצי)'}</span><span class="val">${fmt(nicoleVaadShare)}</span></div>
     ${sharedRows.map(r=>`<div class="analysis-row"><span class="name">${r.cat?r.cat.icon+' '+r.cat.name:r.catId} (½) — ${prevLabel}</span><span class="val">${fmt(r.spent/2)}</span></div>`).join('')}
@@ -1252,7 +1348,7 @@ function renderChartGroupPicker(){
   const sub=document.getElementById('lbl_chartsSub');
   if(sub){
     const remaining=2-selected.length;
-    if(remaining>0) sub.textContent=lang==='en'?`Choose exactly 2 groups (${remaining} more)`:`בחר בדיוק 2 קבוצות (עוד ${remaining})`;
+    if(remaining>0) sub.textContent=lang==='en'?'Choose exactly 2 groups ('+remaining+' more)':'בחר בדיוק 2 קבוצות (עוד '+remaining+')';
     else sub.textContent=lang==='en'?'2 groups selected ✓':'2 קבוצות נבחרו ✓';
   }
 }
@@ -1350,6 +1446,36 @@ function renderSettings(){
   document.getElementById('salaryKeren').value=s.keren||'';
   document.getElementById('salaryPension').value=s.pension||'';
   updateNetDisplay();
+
+  // Show month context banner in salary panel
+  const e=lang==='en';
+  const now=new Date(); now.setDate(1);
+  const isNow=getMonthKey(currentDate)===getMonthKey(now);
+  const isOverride=!isCurrentMonthDefault();
+  const monthName=`${MONTHS()[currentDate.getMonth()]} ${currentDate.getFullYear()}`;
+  let bannerEl=document.getElementById('salaryMonthBanner');
+  if(!bannerEl){
+    bannerEl=document.createElement('div');
+    bannerEl.id='salaryMonthBanner';
+    bannerEl.style.cssText='margin:0 0 10px;padding:10px 14px;border-radius:12px;font-size:12px;display:flex;align-items:center;justify-content:space-between;gap:8px;';
+    const salarySection=document.getElementById('lbl_salarySection');
+    salarySection.parentNode.insertBefore(bannerEl,salarySection.nextSibling);
+  }
+  if(isNow){
+    bannerEl.style.background='rgba(139,92,246,0.08)';
+    bannerEl.style.border='1px solid rgba(139,92,246,0.2)';
+    bannerEl.innerHTML=`<span style="color:var(--purple)">💜 ${e?'Default salary (current month)':'משכורת ברירת מחדל (חודש נוכחי)'}</span>`;
+  } else if(isOverride){
+    bannerEl.style.background='rgba(245,158,11,0.08)';
+    bannerEl.style.border='1px solid rgba(245,158,11,0.3)';
+    bannerEl.innerHTML='<span style="color:var(--amber)">✏️ '+(e?'Override for '+monthName:'עקיפה עבור '+monthName)+'</span>'
+      +'<button onclick="clearSalaryOverride()" style="background:none;border:none;color:var(--text-muted);font-size:11px;cursor:pointer;text-decoration:underline;">'+(e?'Reset to default':'חזור לברירת מחדל')+'</button>';
+  } else {
+    bannerEl.style.background='rgba(20,184,166,0.08)';
+    bannerEl.style.border='1px solid rgba(20,184,166,0.2)';
+    bannerEl.innerHTML='<span style="color:var(--teal)">📅 '+(e?'Editing '+monthName+' — uses default salary':'עורך '+monthName+' — משתמש במשכורת ברירת מחדל')+'</span>';
+  }
+
   renderNicoleSettings();
 }
 
@@ -1580,6 +1706,7 @@ function getAllAppData(){
     expenses:    ls('expenses_data',{}),
     budgets:     ls('budgets',{}),
     salary:      ls('salary',{}),
+    salaryOverrides: ls('salary_overrides',{}),
     nicole:      getNicole(),
     wealth:      ls('wealth_data',{}),
     hidden:      getHiddenCats(),
@@ -1629,6 +1756,7 @@ function importData(event){
       lsSet('expenses_data',data.expenses);
       lsSet('budgets',data.budgets||{});
       lsSet('salary',data.salary||{});
+      lsSet('salary_overrides',data.salaryOverrides||{});
       lsSet('nicole',data.nicole||{});
       lsSet('wealth_data',data.wealth||{});
       saveHiddenCats(data.hidden||[]);
@@ -1650,7 +1778,7 @@ function importData(event){
 function resetAllData(){
   const msg=lang==='en'?'DELETE ALL DATA? This cannot be undone!':'למחוק את כל הנתונים לצמיתות? לא ניתן לשחזר!';
   if(!confirm(msg))return;
-  ['expenses_data','budgets','salary','nicole','wealth_data','hidden_cats','custom_cats','last_backup','next_backup_reminder','analysis_charts'].forEach(k=>localStorage.removeItem(k));
+  ['expenses_data','budgets','salary','salary_overrides','nicole','wealth_data','hidden_cats','custom_cats','last_backup','next_backup_reminder','analysis_charts'].forEach(k=>localStorage.removeItem(k));
   render(); renderStaticUI();
   document.getElementById('settingsModal').classList.remove('open');
 }
@@ -1663,6 +1791,47 @@ function checkBackupReminder(){
     if(confirm(msg))exportData();
     else localStorage.setItem('next_backup_reminder',Date.now()+(7*24*60*60*1000));
   }
+}
+
+function openSalaryOverrideModal(){
+  const s=getSalary();
+  const e=lang==='en';
+  const monthName=`${MONTHS()[currentDate.getMonth()]} ${currentDate.getFullYear()}`;
+  document.getElementById('salaryOverrideTitle').textContent=e?'Salary for '+monthName:'משכורת עבור '+monthName;
+  document.getElementById('lbl_ovGross').textContent=e?'Gross (₪)':'ברוטו חודשי (₪)';
+  document.getElementById('lbl_ovTax').textContent=e?'Taxes / Deductions (₪)':'מיסים / ניכויים (₪)';
+  document.getElementById('lbl_ovKeren').textContent=e?'Education Fund (₪)':'קרן השתלמות (₪)';
+  document.getElementById('lbl_ovPension').textContent=e?'Pension (₪)':'פנסיה (₪)';
+  document.getElementById('lbl_ovNet').textContent=e?'Net':'נטו';
+  document.getElementById('btn_ovSave').textContent=e?'Save':'שמור';
+  document.getElementById('btn_ovCancel').textContent=e?'Cancel':'ביטול';
+  document.getElementById('ovGross').value=s.gross||'';
+  document.getElementById('ovTax').value=s.tax||'';
+  document.getElementById('ovKeren').value=s.keren||'';
+  document.getElementById('ovPension').value=s.pension||'';
+  updateOvNet();
+  ['ovGross','ovTax','ovKeren','ovPension'].forEach(id=>document.getElementById(id).oninput=updateOvNet);
+  document.getElementById('salaryOverrideModal').classList.add('open');
+}
+function updateOvNet(){
+  const g=parseFloat(document.getElementById('ovGross').value)||0;
+  const t=parseFloat(document.getElementById('ovTax').value)||0;
+  const k=parseFloat(document.getElementById('ovKeren').value)||0;
+  const p=parseFloat(document.getElementById('ovPension').value)||0;
+  document.getElementById('ovNetDisplay').textContent=fmt(g-t-k-p);
+}
+function saveSalaryOverride(){
+  const val={
+    gross:  parseFloat(document.getElementById('ovGross').value)||0,
+    tax:    parseFloat(document.getElementById('ovTax').value)||0,
+    keren:  parseFloat(document.getElementById('ovKeren').value)||0,
+    pension:parseFloat(document.getElementById('ovPension').value)||0,
+  };
+  const overrides=getSalaryOverrides();
+  overrides[getMonthKey(currentDate)]=val;
+  lsSet('salary_overrides',overrides);
+  document.getElementById('salaryOverrideModal').classList.remove('open');
+  render();
 }
 
 function openSettingsModal(){
@@ -1843,7 +2012,7 @@ function deleteExpense(id,key){
 }
 
 // Close modals on backdrop click
-['addModal','wealthModal','textInputModal','settingsModal'].forEach(id=>{
+['addModal','wealthModal','textInputModal','settingsModal','salaryOverrideModal'].forEach(id=>{
   document.getElementById(id).addEventListener('click',function(e){if(e.target===this)this.classList.remove('open');});
 });
 
