@@ -940,6 +940,29 @@ function getNet(){const s=getSalary();return s.gross+(s.extra||0)-s.tax-(s.keren
 function updateNetDisplay(){/* no-op — netDisplay removed */}
 
 // Migrate old salary format on first load
+function migrateExpenseKeys(){
+  // Old getMonthKey used 0-indexed months: YYYY-0=Jan, YYYY-1=Feb, ...
+  // New getMonthKey uses 1-indexed: YYYY-01=Jan, YYYY-02=Feb, ...
+  // Detect old format by checking for single-digit month keys
+  const data=getData();
+  const keys=Object.keys(data);
+  const hasOldKeys=keys.some(k=>{
+    const parts=k.split('-');
+    return parts.length===2 && parts[1].length===1;
+  });
+  if(!hasOldKeys) return;
+  const newData={};
+  keys.forEach(k=>{
+    const [y,m]=k.split('-');
+    // Old format: month is 0-indexed (0=Jan ... 11=Dec)
+    // New format: month is 1-indexed padded (01=Jan ... 12=Dec)
+    const newKey=y+'-'+String(parseInt(m)+1).padStart(2,'0');
+    newData[newKey]=(newData[newKey]||[]).concat(data[k]);
+  });
+  saveData(newData);
+  console.log('Migrated expense keys from 0-indexed to 1-indexed months');
+}
+
 function migrateLegacySalary(){
   if(getSalaryTimeline().length>0) return;
   const old=ls('salary',null);
@@ -1560,14 +1583,11 @@ function renderNetIncomeChart(){
   const yearSel=document.getElementById('netIncomeYear');
   if(!canvas||!yearSel)return;
 
-  // Collect all months with expenses or salary — normalize keys to YYYY-MM
+  // Collect all months with expenses or salary
   const expData=ls('expenses_data',{});
   const tl=getSalaryTimeline();
   const monthsSet=new Set();
-  Object.keys(expData).forEach(k=>{
-    const [y,m]=k.split('-');
-    if(y&&m) monthsSet.add(y+'-'+String(parseInt(m)).padStart(2,'0'));
-  });
+  Object.keys(expData).forEach(k=>monthsSet.add(k));
   if(tl.length){
     const [fy,fm]=tl[0].from.split('-').map(Number);
     const now=new Date();
@@ -2204,6 +2224,9 @@ function deleteExpense(id,key){
 ['addModal','wealthModal','textInputModal','settingsModal','salaryEntryModal'].forEach(id=>{
   document.getElementById(id).addEventListener('click',function(e){if(e.target===this)this.classList.remove('open');});
 });
+
+// Migrate expense keys from 0-indexed to 1-indexed months (one-time fix)
+migrateExpenseKeys();
 
 // Migrate legacy salary on startup
 migrateLegacySalary();
