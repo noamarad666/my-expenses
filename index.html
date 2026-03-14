@@ -941,26 +941,41 @@ function updateNetDisplay(){/* no-op — netDisplay removed */}
 
 // Migrate old salary format on first load
 function migrateExpenseKeys(){
-  // Old getMonthKey used 0-indexed months: YYYY-0=Jan, YYYY-1=Feb, ...
-  // New getMonthKey uses 1-indexed: YYYY-01=Jan, YYYY-02=Feb, ...
-  // Detect old format by checking for single-digit month keys
+  // Old getMonthKey used 0-indexed padded months: 2025-00=Jan, 2025-01=Feb, ..., 2025-11=Dec
+  // New getMonthKey uses 1-indexed padded months: 2025-01=Jan, 2025-02=Feb, ..., 2025-12=Dec
+  // Detect old format: any key with month '00' (old January) or month > '12' can't exist in new format
   const data=getData();
   const keys=Object.keys(data);
+  // Check if any key has month 00 (old 0-indexed January) or month > 12 (impossible in new format)
+  // OR any key has month that when treated as 0-indexed would be valid (00-11)
   const hasOldKeys=keys.some(k=>{
     const parts=k.split('-');
-    return parts.length===2 && parts[1].length===1;
+    if(parts.length!==2) return false;
+    const m=parseInt(parts[1]);
+    return m===0; // 00 = old January, impossible in new 1-indexed format
   });
   if(!hasOldKeys) return;
   const newData={};
   keys.forEach(k=>{
     const [y,m]=k.split('-');
-    // Old format: month is 0-indexed (0=Jan ... 11=Dec)
-    // New format: month is 1-indexed padded (01=Jan ... 12=Dec)
     const newKey=y+'-'+String(parseInt(m)+1).padStart(2,'0');
     newData[newKey]=(newData[newKey]||[]).concat(data[k]);
   });
   saveData(newData);
-  console.log('Migrated expense keys from 0-indexed to 1-indexed months');
+
+  // Also migrate wealth data keys
+  const wData=getWealthData();
+  const wKeys=Object.keys(wData);
+  const hasOldWKeys=wKeys.some(k=>{const parts=k.split('-');return parts.length===2&&parseInt(parts[1])===0;});
+  if(hasOldWKeys){
+    const newWData={};
+    wKeys.forEach(k=>{
+      const [y,m]=k.split('-');
+      const newKey=y+'-'+String(parseInt(m)+1).padStart(2,'0');
+      newWData[newKey]=wData[k];
+    });
+    saveWealthData(newWData);
+  }
 }
 
 function migrateLegacySalary(){
@@ -1617,14 +1632,20 @@ function renderNetIncomeChart(){
   const filteredKeys=selected==='all'?allKeys:allKeys.filter(k=>k.startsWith(selected));
   const monthsHe=['ינו','פבר','מרץ','אפר','מאי','יוני','יולי','אוג','ספט','אוק','נוב','דצמ'];
   const monthsEn=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
-  const labels=filteredKeys.map(k=>{
+  // Filter out any malformed keys before building labels
+  const validKeys=filteredKeys.filter(k=>{
+    const [y,mo]=k.split('-');
+    const m=parseInt(mo);
+    return m>=1&&m<=12&&y&&y.length===4;
+  });
+  const labels=validKeys.map(k=>{
     const [y,mo]=k.split('-');
     const name=(e?monthsEn:monthsHe)[parseInt(mo)-1];
     return selected==='all'?name+' '+y.slice(2):name;
   });
 
   const savedDate=currentDate;
-  const data=filteredKeys.map(k=>{
+  const data=validKeys.map(k=>{
     const [y,mo]=k.split('-').map(Number);
     currentDate=new Date(y,mo-1,1);
     const net=getNet();
