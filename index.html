@@ -940,44 +940,6 @@ function getNet(){const s=getSalary();return s.gross+(s.extra||0)-s.tax-(s.keren
 function updateNetDisplay(){/* no-op — netDisplay removed */}
 
 // Migrate old salary format on first load
-function migrateExpenseKeys(){
-  // Old getMonthKey used 0-indexed padded months: 2025-00=Jan, 2025-01=Feb, ..., 2025-11=Dec
-  // New getMonthKey uses 1-indexed padded months: 2025-01=Jan, 2025-02=Feb, ..., 2025-12=Dec
-  // Detect old format: any key with month '00' (old January) or month > '12' can't exist in new format
-  const data=getData();
-  const keys=Object.keys(data);
-  // Check if any key has month 00 (old 0-indexed January) or month > 12 (impossible in new format)
-  // OR any key has month that when treated as 0-indexed would be valid (00-11)
-  const hasOldKeys=keys.some(k=>{
-    const parts=k.split('-');
-    if(parts.length!==2) return false;
-    const m=parseInt(parts[1]);
-    return m===0; // 00 = old January, impossible in new 1-indexed format
-  });
-  if(!hasOldKeys) return;
-  const newData={};
-  keys.forEach(k=>{
-    const [y,m]=k.split('-');
-    const newKey=y+'-'+String(parseInt(m)+1).padStart(2,'0');
-    newData[newKey]=(newData[newKey]||[]).concat(data[k]);
-  });
-  saveData(newData);
-
-  // Also migrate wealth data keys
-  const wData=getWealthData();
-  const wKeys=Object.keys(wData);
-  const hasOldWKeys=wKeys.some(k=>{const parts=k.split('-');return parts.length===2&&parseInt(parts[1])===0;});
-  if(hasOldWKeys){
-    const newWData={};
-    wKeys.forEach(k=>{
-      const [y,m]=k.split('-');
-      const newKey=y+'-'+String(parseInt(m)+1).padStart(2,'0');
-      newWData[newKey]=wData[k];
-    });
-    saveWealthData(newWData);
-  }
-}
-
 function migrateLegacySalary(){
   if(getSalaryTimeline().length>0) return;
   const old=ls('salary',null);
@@ -1239,7 +1201,7 @@ function getAllMonthKeys(){const d=getData();return Object.keys(d).filter(k=>d[k
 function getPrevMonthKey(){const d=new Date(currentDate);d.setMonth(d.getMonth()-1);return getMonthKey(d);}
 function getYearMonthKeys(year){
   const keys=[];
-  for(let m=0;m<12;m++){keys.push(`${year}-${String(m).padStart(2,'0')}`);}
+  for(let m=1;m<=12;m++){keys.push(`${year}-${String(m).padStart(2,'0')}`);}
   return keys;
 }
 
@@ -1453,7 +1415,7 @@ function renderWealthChart(){
   if(wealthChart){wealthChart.destroy();wealthChart=null;}
   const year=currentDate.getFullYear();
   const keys=getYearMonthKeys(year);
-  const labels=keys.map(k=>MONTHS()[parseInt(k.split('-')[1])].slice(0,3));
+  const labels=keys.map(k=>MONTHS()[parseInt(k.split('-')[1])-1].slice(0,3));
   const totals=keys.map(k=>getWealthTotal(k));
   if(totals.every(v=>v===0))return;
   const ctx=document.getElementById('wealthChart').getContext('2d');
@@ -1470,7 +1432,7 @@ function renderIncomeExpenseChart(){
   if(incomeExpenseChart){incomeExpenseChart.destroy();incomeExpenseChart=null;}
   const year=currentYear();
   const keys=getYearMonthKeys(year);
-  const labels=keys.map(k=>MONTHS()[parseInt(k.split('-')[1])].slice(0,3));
+  const labels=keys.map(k=>MONTHS()[parseInt(k.split('-')[1])-1].slice(0,3));
   const net=getNet();
   const incomes=keys.map(()=>net>0?net:0);
   const expenses=keys.map(k=>getTotalSpentInKey(k,true));
@@ -1491,7 +1453,7 @@ function renderIncomeExpenseChart(){
 function renderStackedBarChart(canvasId, chartRef, catIds, year){
   if(chartRef){chartRef.destroy();}
   const keys=getYearMonthKeys(year);
-  const labels=keys.map(k=>MONTHS()[parseInt(k.split('-')[1])].slice(0,3));
+  const labels=keys.map(k=>MONTHS()[parseInt(k.split('-')[1])-1].slice(0,3));
   const colors=['rgba(245,158,11,0.8)','rgba(239,68,68,0.8)','rgba(59,130,246,0.8)','rgba(16,185,129,0.8)','rgba(139,92,246,0.8)'];
   const cats=catIds.map(id=>getAllCats().find(c=>c.id===id)).filter(Boolean);
   const datasets=cats.map((cat,i)=>({
@@ -1599,10 +1561,21 @@ function renderNetIncomeChart(){
   if(!canvas||!yearSel)return;
 
   // Collect all months with expenses or salary
+  // Normalize any legacy 0-indexed keys (YYYY-00=Jan) to 1-indexed (YYYY-01) for display only
   const expData=ls('expenses_data',{});
   const tl=getSalaryTimeline();
   const monthsSet=new Set();
-  Object.keys(expData).forEach(k=>monthsSet.add(k));
+  Object.keys(expData).forEach(k=>{
+    const [y,mo]=k.split('-');
+    const m=parseInt(mo);
+    if(m===0){
+      // Old 0-indexed January — remap to 01 for display
+      monthsSet.add(y+'-01');
+    } else if(m>=1&&m<=12){
+      monthsSet.add(k);
+    }
+    // skip anything else malformed
+  });
   if(tl.length){
     const [fy,fm]=tl[0].from.split('-').map(Number);
     const now=new Date();
@@ -2245,9 +2218,6 @@ function deleteExpense(id,key){
 ['addModal','wealthModal','textInputModal','settingsModal','salaryEntryModal'].forEach(id=>{
   document.getElementById(id).addEventListener('click',function(e){if(e.target===this)this.classList.remove('open');});
 });
-
-// Migrate expense keys from 0-indexed to 1-indexed months (one-time fix)
-migrateExpenseKeys();
 
 // Migrate legacy salary on startup
 migrateLegacySalary();
