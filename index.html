@@ -598,6 +598,10 @@
       </div>
     </div>
     <div class="settings-row">
+      <label id="lbl_seNote">מקום עבודה / הערה</label>
+      <input type="text" id="seNote" placeholder="e.g. Google, Freelance...">
+    </div>
+    <div class="settings-row">
       <label id="lbl_seGross">ברוטו חודשי (₪)</label>
       <input type="number" id="seGross" placeholder="0" oninput="updateSENet()">
     </div>
@@ -914,8 +918,19 @@ function saveNicole(){
 // Storage: 'salary_timeline' = [{id, from:'YYYY-MM', gross, tax, keren, pension}]
 // Sorted by 'from' ascending. Last entry = current salary (no end date).
 
+const SALARY_COLORS=['rgba(139,92,246,0.8)','rgba(245,158,11,0.8)','rgba(59,130,246,0.8)','rgba(16,185,129,0.8)','rgba(239,68,68,0.8)','rgba(236,72,153,0.8)','rgba(20,184,166,0.8)','rgba(249,115,22,0.8)'];
+
 function getSalaryTimeline(){
-  const tl = ls('salary_timeline', []);
+  const tl=ls('salary_timeline',[]);
+  // Auto-assign colors to any entry missing one
+  let changed=false;
+  tl.forEach((entry,i)=>{
+    if(!entry.color){
+      entry.color=SALARY_COLORS[i%SALARY_COLORS.length];
+      changed=true;
+    }
+  });
+  if(changed) lsSet('salary_timeline',tl);
   return tl;
 }
 function saveSalaryTimeline(tl){
@@ -995,6 +1010,12 @@ function renderSalaryTimeline(){
 
     const dateRow = document.createElement('div');
     dateRow.className = 'salary-entry-dates';
+    // Color dot
+    if(entry.color){
+      const dot = document.createElement('span');
+      dot.style.cssText = 'display:inline-block;width:9px;height:9px;border-radius:50%;background:'+entry.color+';margin-right:6px;flex-shrink:0;vertical-align:middle;';
+      dateRow.appendChild(dot);
+    }
     if(isCurrent){
       const badge = document.createElement('span');
       badge.className = 'active-badge';
@@ -1003,6 +1024,13 @@ function renderSalaryTimeline(){
       dateRow.appendChild(document.createTextNode(' '));
     }
     dateRow.appendChild(document.createTextNode(startLabel + ' → ' + endLabel));
+    // Note/workplace
+    if(entry.note){
+      const noteSpan = document.createElement('div');
+      noteSpan.style.cssText = 'font-size:12px;font-weight:700;color:var(--text);margin-top:3px;';
+      noteSpan.textContent = '🏢 ' + entry.note;
+      dateRow.appendChild(noteSpan);
+    }
 
     const netRow = document.createElement('div');
     netRow.className = 'salary-entry-net';
@@ -1101,6 +1129,9 @@ function openSalaryEntryModal(id){
   document.getElementById('btn_seSave').textContent=e?'Save':'שמור';
   document.getElementById('btn_seCancel').textContent=e?'Cancel':'ביטול';
   populateSEFromDropdowns(entry?entry.from:null);
+  document.getElementById('lbl_seNote').textContent=e?'Workplace / Note':'מקום עבודה / הערה';
+  document.getElementById('seNote').placeholder=e?'e.g. Google, Freelance...':'לדוג׳ גוגל, פרילנס...';
+  document.getElementById('seNote').value=entry?(entry.note||''):'';
   document.getElementById('seGross').value=entry?entry.gross:'';
   document.getElementById('seExtra').value=entry?(entry.extra||''):'';
   document.getElementById('seTax').value=entry?entry.tax:'';
@@ -1119,9 +1150,15 @@ function updateSENet(){
 }
 function saveSalaryEntry(){
   const tl=getSalaryTimeline();
+  // Keep existing color if editing, assign next color if new
+  const existingEntry=_editingSalaryId?tl.find(x=>x.id===_editingSalaryId):null;
+  const usedColors=tl.filter(x=>x.id!==_editingSalaryId).map(x=>x.color).filter(Boolean);
+  const nextColor=existingEntry?.color||SALARY_COLORS.find(c=>!usedColors.includes(c))||SALARY_COLORS[tl.length%SALARY_COLORS.length];
   const val={
     id: _editingSalaryId||('sal_'+Date.now()),
     from: getSEFromValue(),
+    note: document.getElementById('seNote').value.trim(),
+    color: nextColor,
     gross: parseFloat(document.getElementById('seGross').value)||0,
     extra: parseFloat(document.getElementById('seExtra').value)||0,
     tax:   parseFloat(document.getElementById('seTax').value)||0,
@@ -1618,16 +1655,35 @@ function renderNetIncomeChart(){
   });
 
   const savedDate=currentDate;
+  const barColors=[];
   const data=validKeys.map(k=>{
     const [y,mo]=k.split('-').map(Number);
     currentDate=new Date(y,mo-1,1);
     const net=getNet();
+    // Find which salary entry covers this month
+    const entry=getSalary();
+    barColors.push(entry&&entry.color?entry.color:'rgba(139,92,246,0.7)');
     return net>0?net:0;
   });
   currentDate=savedDate;
 
   const title=selected==='all'?(e?'📊 Net Income — All Time':'📊 הכנסה נטו — כל הזמן'):(e?'📊 Net Income — '+selected:'📊 הכנסה נטו — '+selected);
   document.getElementById('lbl_netIncomeChart').textContent=title;
+
+  // Build legend for named entries
+  const namedEntries=tl.filter(x=>x.note&&x.color);
+  let legendEl=document.getElementById('netIncomeLegend');
+  if(!legendEl){
+    legendEl=document.createElement('div');
+    legendEl.id='netIncomeLegend';
+    legendEl.style.cssText='display:flex;flex-wrap:wrap;gap:8px;padding:4px 0 8px;';
+    canvas.parentNode.insertBefore(legendEl,canvas);
+  }
+  if(namedEntries.length>1){
+    legendEl.innerHTML=namedEntries.map(x=>`<span style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--text-muted)"><span style="width:10px;height:10px;border-radius:50%;background:${x.color};display:inline-block;"></span>${x.note}</span>`).join('');
+  } else {
+    legendEl.innerHTML='';
+  }
 
   if(netIncomeChart){netIncomeChart.destroy();netIncomeChart=null;}
   netIncomeChart=new Chart(canvas,{
@@ -1637,7 +1693,7 @@ function renderNetIncomeChart(){
       datasets:[{
         label:e?'Net Income':'הכנסה נטו',
         data,
-        backgroundColor:'rgba(139,92,246,0.7)',
+        backgroundColor:barColors,
         borderRadius:3,
         borderSkipped:false,
       }]
