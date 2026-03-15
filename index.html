@@ -1717,19 +1717,12 @@ function populatePieSelects(){
   const allKeys=getAllMonthKeys();
   if(!allKeys.length)return;
   ['pieMonth1','pieMonth2'].forEach((id,i)=>{
-    const el=document.getElementById(id), cur=el.value;
-    el.innerHTML=`<option value="">${lang==='en'?'Select month':'בחר חודש'}</option>`+allKeys.map(k=>`<option value="${k}">${keyToLabel(k)}</option>`).join('');
-    if(cur&&allKeys.includes(cur))el.value=cur;
-    else{
-      // Default: x-2 on left, x-1 on right (where x = current month)
-      const now=new Date();
-      const d1=new Date(now.getFullYear(),now.getMonth()-2,1);
-      const d2=new Date(now.getFullYear(),now.getMonth()-1,1);
-      const k1=getMonthKey(d1);
-      const k2=getMonthKey(d2);
-      if(i===0) el.value=k1;
-      if(i===1) el.value=k2;
-    }
+    const el=document.getElementById(id);
+    const now=new Date();
+    const defaultKey=i===0?getMonthKey(new Date(now.getFullYear(),now.getMonth()-2,1)):getMonthKey(new Date(now.getFullYear(),now.getMonth()-1,1));
+    const optionKeys=[...new Set([...allKeys,defaultKey])].sort().reverse();
+    el.innerHTML=`<option value="">${lang==='en'?'Select month':'בחר חודש'}</option>`+optionKeys.map(k=>`<option value="${k}">${keyToLabel(k)}</option>`).join('');
+    el.value=defaultKey;
   });
 }
 function buildPieData(key){
