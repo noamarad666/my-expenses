@@ -1780,7 +1780,7 @@ function renderSavingsRateChart(){
   const monthsArr=[];
   for(let i=11;i>=0;i--){
     const d=new Date(today.getFullYear(),today.getMonth()-i,1);
-    monthsArr.push({key:getMonthKey(d),label:monthKeyToLabel(getMonthKey(d)).slice(0,6),d});
+    const k=getMonthKey(d);const[yr,mo]=k.split('-');const mNames=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];const mNamesHe=['ינו','פבר','מרץ','אפר','מאי','יוני','יולי','אוג','ספט','אוק','נוב','דצמ'];const mLabel=(lang==='en'?mNames:mNamesHe)[parseInt(mo)-1]+' '+yr.slice(2);monthsArr.push({key:k,label:mLabel,d});
   }
   const labels=monthsArr.map(m=>m.label);
   const data=monthsArr.map(m=>{
@@ -1798,22 +1798,23 @@ function renderSavingsRateChart(){
       label:e?'Savings Rate %':'% חיסכון',
       data,
       borderColor:'#10b981',
-      backgroundColor:'transparent',
+      backgroundColor:'rgba(16,185,129,0.12)',
       borderWidth:2.5,
       pointBackgroundColor:'#10b981',
       pointRadius:4,
       pointHoverRadius:6,
       tension:0.3,
-      fill:false,
+      fill:'origin',
       spanGaps:true,
     }]},
     options:{responsive:true,
       plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>ctx.parsed.y+'%'}}},
       scales:{
         x:{ticks:{color:CHART_DEFAULTS.color,font:CHART_DEFAULTS.font,maxRotation:45},grid:{color:CHART_DEFAULTS.grid.color}},
-        y:{ticks:{color:CHART_DEFAULTS.color,font:CHART_DEFAULTS.font,callback:v=>v+'%'},grid:{color:CHART_DEFAULTS.grid.color},
-           afterDataLimits:axis=>{axis.max=Math.max(axis.max,10);},
-           border:{dash:[4,4]}}
+        y:{ticks:{color:CHART_DEFAULTS.color,font:CHART_DEFAULTS.font,callback:v=>v+'%'},
+           grid:{color:ctx=>ctx.tick.value===0?'rgba(255,255,255,0.3)':CHART_DEFAULTS.grid.color,
+                 lineWidth:ctx=>ctx.tick.value===0?2:1},
+           afterDataLimits:axis=>{axis.max=Math.max(axis.max,10);}}
       }
     }
   });
