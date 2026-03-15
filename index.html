@@ -1792,23 +1792,52 @@ function renderSavingsRateChart(){
     return Math.round(((net-spent)/net)*100);
   });
   if(savingsRateChart){savingsRateChart.destroy();savingsRateChart=null;}
+  // Split into positive and negative for clean coloring
+  const dataPos=data.map(v=>v===null?null:Math.max(v,0));
+  const dataNeg=data.map(v=>v===null?null:Math.min(v,0));
+
   savingsRateChart=new Chart(canvas,{
     type:'line',
-    data:{labels,datasets:[{
-      label:e?'Savings Rate %':'% חיסכון',
-      data,
-      borderColor:'#10b981',
-      backgroundColor:'rgba(16,185,129,0.12)',
-      borderWidth:2.5,
-      pointBackgroundColor:'#10b981',
-      pointRadius:4,
-      pointHoverRadius:6,
-      tension:0.3,
-      fill:'origin',
-      spanGaps:true,
-    }]},
+    data:{labels,datasets:[
+      {
+        data:dataPos,
+        borderColor:'#10b981',
+        backgroundColor:'rgba(16,185,129,0.15)',
+        borderWidth:0,
+        pointRadius:0,
+        tension:0.3,
+        fill:'origin',
+        spanGaps:true,
+      },
+      {
+        data:dataNeg,
+        borderColor:'#ef4444',
+        backgroundColor:'rgba(239,68,68,0.15)',
+        borderWidth:0,
+        pointRadius:0,
+        tension:0.3,
+        fill:'origin',
+        spanGaps:true,
+      },
+      {
+        label:e?'Savings Rate %':'% חיסכון',
+        data,
+        borderColor:'#10b981',
+        backgroundColor:'transparent',
+        borderWidth:2.5,
+        pointBackgroundColor:data.map(v=>v===null?'transparent':v>=0?'#10b981':'#ef4444'),
+        pointRadius:4,
+        pointHoverRadius:6,
+        tension:0.3,
+        fill:false,
+        spanGaps:true,
+      }
+    ]},
     options:{responsive:true,
-      plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>ctx.parsed.y+'%'}}},
+      plugins:{legend:{display:false},tooltip:{
+        filter:item=>item.datasetIndex===2,
+        callbacks:{label:ctx=>ctx.parsed.y+'%'}
+      }},
       scales:{
         x:{ticks:{color:CHART_DEFAULTS.color,font:CHART_DEFAULTS.font,maxRotation:45},grid:{color:CHART_DEFAULTS.grid.color}},
         y:{ticks:{color:CHART_DEFAULTS.color,font:CHART_DEFAULTS.font,callback:v=>v+'%'},
