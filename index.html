@@ -1721,11 +1721,14 @@ function populatePieSelects(){
     el.innerHTML=`<option value="">${lang==='en'?'Select month':'בחר חודש'}</option>`+allKeys.map(k=>`<option value="${k}">${keyToLabel(k)}</option>`).join('');
     if(cur&&allKeys.includes(cur))el.value=cur;
     else{
-      // Default: last 2 completed months (skip current month)
-      const nowKey=getMonthKey(new Date());
-      const past=[...allKeys].filter(k=>k<nowKey).reverse();
-      if(i===0) el.value=past[1]||past[0]||'';
-      if(i===1) el.value=past[0]||'';
+      // Default: x-2 on left, x-1 on right (where x = current month)
+      const now=new Date();
+      const d1=new Date(now.getFullYear(),now.getMonth()-2,1);
+      const d2=new Date(now.getFullYear(),now.getMonth()-1,1);
+      const k1=getMonthKey(d1);
+      const k2=getMonthKey(d2);
+      if(i===0) el.value=k1;
+      if(i===1) el.value=k2;
     }
   });
 }
