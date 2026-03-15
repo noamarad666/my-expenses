@@ -271,6 +271,15 @@
   .salary-entry-actions button{background:var(--surface2);border:1px solid var(--border);color:var(--text-muted);border-radius:8px;padding:4px 10px;font-size:12px;cursor:pointer;font-family:'Heebo',sans-serif;}
   .salary-empty{text-align:center;padding:32px 16px;color:var(--text-muted);font-size:13px;}
 
+  /* Insight cards */
+  .insight-card{display:flex;align-items:flex-start;gap:12px;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:12px 14px;margin-bottom:8px;}
+  .insight-icon{font-size:22px;flex-shrink:0;margin-top:1px;}
+  .insight-text{font-size:13px;line-height:1.5;color:var(--text);}
+  .insight-text strong{color:var(--amber);font-weight:700;}
+  .insight-card.positive{border-color:rgba(16,185,129,0.3);background:rgba(16,185,129,0.06);}
+  .insight-card.warning{border-color:rgba(245,158,11,0.3);background:rgba(245,158,11,0.06);}
+  .insight-card.negative{border-color:rgba(239,68,68,0.3);background:rgba(239,68,68,0.06);}
+
   .nicole-cat-row{display:flex;align-items:center;justify-content:space-between;padding:8px 14px;margin:0 8px 3px;background:var(--surface);border-radius:10px;border:1px solid var(--border);font-size:13px;}
   .nicole-cat-row .toggle-check{width:20px;height:20px;border-radius:6px;border:2px solid var(--border);background:var(--surface2);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:13px;flex-shrink:0;transition:all 0.15s;}
   .nicole-cat-row .toggle-check.on{background:var(--blue);border-color:var(--blue);}
@@ -328,10 +337,23 @@
 
 <!-- ANALYSIS (charts + comparison) -->
 <div id="view-analysis" class="view active">
+  <!-- Insights card -->
+  <div id="insightsCard" style="margin-bottom:10px;"></div>
+
   <!-- Income vs Expenses chart -->
   <div class="chart-card">
     <h3 id="lbl_incomeChart">💰 הכנסות מול הוצאות — שנה נוכחית</h3>
     <canvas id="incomeExpenseChart" height="160"></canvas>
+  </div>
+  <!-- Monthly spending trend -->
+  <div class="chart-card">
+    <h3 id="lbl_spendTrendChart">📉 מגמת הוצאות — 12 חודשים אחרונים</h3>
+    <canvas id="spendTrendChart" height="140"></canvas>
+  </div>
+  <!-- Savings rate -->
+  <div class="chart-card">
+    <h3 id="lbl_savingsRateChart">💰 שיעור חיסכון — 12 חודשים אחרונים</h3>
+    <canvas id="savingsRateChart" height="140"></canvas>
   </div>
   <!-- Custom chart 1 -->
   <div class="chart-card">
@@ -345,7 +367,6 @@
   </div>
   <!-- Monthly summary card -->
   <div id="analysisContent"></div>
-  <!-- Pie comparison -->
   <!-- Net income chart -->
   <div class="chart-card">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
@@ -505,8 +526,11 @@
     <!-- CHARTS panel -->
     <div class="settings-panel" id="settingsPanelCharts">
       <button class="settings-back" onclick="openSettingsPanel('menu')">‹ <span id="lbl_backBtn4">חזרה</span></button>
-      <div class="section-title" id="lbl_chartsSection">גרפי ניתוח — בחר 2 קבוצות</div>
-      <div style="font-size:12px;color:var(--text-muted);padding:0 4px 10px;" id="lbl_chartsSub">בחר בדיוק 2 קבוצות קטגוריות שיוצגו כגרפים בלשונית הניתוח</div>
+      <div class="section-title" id="lbl_chartsSection">גרפי ניתוח</div>
+      <div style="font-size:12px;color:var(--text-muted);padding:0 4px 10px;" id="lbl_chartsSub">בחר אילו גרפים יוצגו בלשונית הניתוח</div>
+      <div id="chartVisibilityPicker"></div>
+      <div class="section-title" id="lbl_catChartSection" style="margin-top:12px;">קבוצות קטגוריה</div>
+      <div style="font-size:12px;color:var(--text-muted);padding:0 4px 10px;" id="lbl_catChartSub">בחר 1 או 2 קבוצות לגרפים המפורטים</div>
       <div id="chartGroupPicker"></div>
     </div>
 
@@ -680,8 +704,11 @@ function renderStaticUI(){
   const st=document.getElementById('lbl_settingsTitle');if(st)st.textContent=e?'⚙️ Settings':'⚙️ הגדרות';
   const cs=document.getElementById('btn_closeSettings');if(cs)cs.textContent=e?'Close':'סגור';
   const smiCharts=document.getElementById('smi_charts');if(smiCharts)smiCharts.textContent=e?'Analysis Charts':'גרפי ניתוח';
-  const smiChartsSub=document.getElementById('smi_charts_sub');if(smiChartsSub)smiChartsSub.textContent=e?'Choose 2 category groups':'בחר 2 קטגוריות גדולות';
-  const lbCharts=document.getElementById('lbl_chartsSection');if(lbCharts)lbCharts.textContent=e?'Analysis Charts — Pick 2 groups':'גרפי ניתוח — בחר 2 קבוצות';
+  const smiChartsSub=document.getElementById('smi_charts_sub');if(smiChartsSub)smiChartsSub.textContent=e?'Choose which charts to show':'בחר אילו גרפים להציג';
+  const lbCharts=document.getElementById('lbl_chartsSection');if(lbCharts)lbCharts.textContent=e?'Analysis Charts':'גרפי ניתוח';
+  const lbChartsSub=document.getElementById('lbl_chartsSub');if(lbChartsSub)lbChartsSub.textContent=e?'Choose which charts to show in Analysis':'בחר אילו גרפים יוצגו בלשונית הניתוח';
+  const lbCatChart=document.getElementById('lbl_catChartSection');if(lbCatChart)lbCatChart.textContent=e?'Category Groups':'קבוצות קטגוריה';
+  const lbCatChartSub=document.getElementById('lbl_catChartSub');if(lbCatChartSub)lbCatChartSub.textContent=e?'Pick 1 or 2 category groups for the detailed charts':'בחר 1 או 2 קבוצות לגרפים המפורטים';
   const smiBackup=document.getElementById('smi_backup');if(smiBackup)smiBackup.textContent=e?'Backup & Restore':'גיבוי ושחזור';
   const smiBackupSub=document.getElementById('smi_backup_sub');if(smiBackupSub)smiBackupSub.textContent=e?'Export & import data':'ייצוא ויבוא נתונים';
   const lbBackup=document.getElementById('lbl_backupSection');if(lbBackup)lbBackup.textContent=e?'Backup & Restore':'גיבוי ושחזור';
@@ -716,6 +743,8 @@ function renderStaticUI(){
   document.getElementById('btn_wealthEdit').textContent=e?'✏️ Update this month':'✏️ עדכן יתרות לחודש זה';
   document.getElementById('lbl_wealthChart').textContent=e?'📈 Savings Trend — Current Year':'📈 תוספת לחסכון — שנה נוכחית';
   document.getElementById('lbl_incomeChart').textContent=e?'💰 Income vs Expenses — Current Year':'💰 הכנסות מול הוצאות — שנה נוכחית';
+  const lbSpend=document.getElementById('lbl_spendTrendChart');if(lbSpend)lbSpend.textContent=e?'📉 Spending Trend — Last 12 Months':'📉 מגמת הוצאות — 12 חודשים אחרונים';
+  const lbSave=document.getElementById('lbl_savingsRateChart');if(lbSave)lbSave.textContent=e?'💰 Savings Rate — Last 12 Months':'💰 שיעור חיסכון — 12 חודשים אחרונים';
   document.getElementById('lbl_pieSection').textContent=e?'Month Comparison':'השוואת חודשים';
   // Settings
   const lbSalary=document.getElementById('lbl_salarySection');if(lbSalary)lbSalary.textContent=e?'Salary & Income':'משכורת והכנסות';
@@ -897,7 +926,7 @@ const CAR_CATS    = ['insurance_car','car_test','fuel','parking','public_transpo
 // ── State ───────────────────────────────────────────────
 let currentDate=new Date(); currentDate.setDate(1);
 let selectedCatId=null, currentTab='analysis', isPastExpense=false;
-let pieCharts=[null,null], wealthChart=null, incomeExpenseChart=null, customChart1=null, customChart2=null, netIncomeChart=null;
+let pieCharts=[null,null], wealthChart=null, incomeExpenseChart=null, customChart1=null, customChart2=null, netIncomeChart=null, spendTrendChart=null, savingsRateChart=null;
 let entryType='expense';
 
 // ── Storage ─────────────────────────────────────────────
@@ -1364,10 +1393,25 @@ function renderWealthCard(){
 
 // ── Analysis ─────────────────────────────────────────────
 function renderAnalysisView(){
-  renderIncomeExpenseChart();
-  renderFoodChart();
+  if(isChartVisible('insights'))renderInsights(); else{const c=document.getElementById('insightsCard');if(c)c.innerHTML='';}
+  if(isChartVisible('incomeExp'))renderIncomeExpenseChart();
+  if(isChartVisible('spendTrend'))renderSpendTrendChart();
+  if(isChartVisible('savingsRate'))renderSavingsRateChart();
+  if(isChartVisible('cat1')||isChartVisible('cat2'))renderFoodChart();
   renderCarChart();
-  renderNetIncomeChart();
+  if(isChartVisible('netIncome'))renderNetIncomeChart();
+
+  // Hide/show chart cards based on visibility
+  const map={incomeExp:'incomeExpenseChart',spendTrend:'spendTrendChart',savingsRate:'savingsRateChart',netIncome:'netIncomeChart'};
+  Object.entries(map).forEach(([id,canvasId])=>{
+    const card=document.getElementById(canvasId)?.closest('.chart-card');
+    if(card)card.style.display=isChartVisible(id)?'':'none';
+  });
+  // Custom category charts
+  const cc1=document.getElementById('customChart1')?.closest('.chart-card');
+  const cc2=document.getElementById('customChart2')?.closest('.chart-card');
+  if(cc1)cc1.style.display=isChartVisible('cat1')?'':'none';
+  if(cc2)cc2.style.display=isChartVisible('cat2')?'':'none';
 
   const container=document.getElementById('analysisContent');
   const salary=getSalary(), net=getNet();
@@ -1537,20 +1581,33 @@ function renderCustomCharts(){
   const groups=getAnalysisCharts();
   const yr=currentYear();
   const yearLabel=lang==='en'?'Current Year':'שנה נוכחית';
+  const e=lang==='en';
+
   // Chart 1
-  const g1=groups[0];
-  const cats1=getAllCats().filter(c=>c.group===g1||c.group===GROUP_HE_TO_EN[g1]||c.group===GROUP_EN_TO_HE[g1]).map(c=>c.id);
-  const icon1=getGroupIcon(g1);
-  const name1=getGroupDisplayName(g1);
-  document.getElementById('lbl_customChart1').textContent=`${icon1} ${name1} — ${yearLabel}`;
-  customChart1=renderStackedBarChart('customChart1',customChart1,cats1,yr);
+  const card1=document.getElementById('customChart1')?.closest('.chart-card');
+  if(groups[0]){
+    if(card1)card1.style.display='';
+    const g1=groups[0];
+    const cats1=getAllCats().filter(c=>c.group===g1||c.group===GROUP_HE_TO_EN[g1]||c.group===GROUP_EN_TO_HE[g1]).map(c=>c.id);
+    document.getElementById('lbl_customChart1').textContent=`${getGroupIcon(g1)} ${getGroupDisplayName(g1)} — ${yearLabel}`;
+    customChart1=renderStackedBarChart('customChart1',customChart1,cats1,yr);
+  } else {
+    if(card1)card1.style.display='none';
+    if(customChart1){customChart1.destroy();customChart1=null;}
+  }
+
   // Chart 2
-  const g2=groups[1];
-  const cats2=getAllCats().filter(c=>c.group===g2||c.group===GROUP_HE_TO_EN[g2]||c.group===GROUP_EN_TO_HE[g2]).map(c=>c.id);
-  const icon2=getGroupIcon(g2);
-  const name2=getGroupDisplayName(g2);
-  document.getElementById('lbl_customChart2').textContent=`${icon2} ${name2} — ${yearLabel}`;
-  customChart2=renderStackedBarChart('customChart2',customChart2,cats2,yr);
+  const card2=document.getElementById('customChart2')?.closest('.chart-card');
+  if(groups[1]){
+    if(card2)card2.style.display='';
+    const g2=groups[1];
+    const cats2=getAllCats().filter(c=>c.group===g2||c.group===GROUP_HE_TO_EN[g2]||c.group===GROUP_EN_TO_HE[g2]).map(c=>c.id);
+    document.getElementById('lbl_customChart2').textContent=`${getGroupIcon(g2)} ${getGroupDisplayName(g2)} — ${yearLabel}`;
+    customChart2=renderStackedBarChart('customChart2',customChart2,cats2,yr);
+  } else {
+    if(card2)card2.style.display='none';
+    if(customChart2){customChart2.destroy();customChart2=null;}
+  }
 }
 
 function renderChartGroupPicker(){
@@ -1571,8 +1628,8 @@ function renderChartGroupPicker(){
   const sub=document.getElementById('lbl_chartsSub');
   if(sub){
     const remaining=2-selected.length;
-    if(remaining>0) sub.textContent=lang==='en'?'Choose exactly 2 groups ('+remaining+' more)':'בחר בדיוק 2 קבוצות (עוד '+remaining+')';
-    else sub.textContent=lang==='en'?'2 groups selected ✓':'2 קבוצות נבחרו ✓';
+    if(remaining>0) sub.textContent=lang==='en'?'Choose 1 or 2 groups':'בחר 1 או 2 קבוצות';
+    else sub.textContent=lang==='en'?selected.length+' group(s) selected ✓':selected.length+' קבוצות נבחרו ✓';
   }
 }
 
@@ -1582,7 +1639,7 @@ function toggleChartGroup(group){
   if(idx>=0){
     selected.splice(idx,1);
   } else {
-    if(selected.length>=2){selected.shift();}
+    if(selected.length>=2){selected.shift();} // allow up to 2
     selected.push(group);
   }
   saveAnalysisCharts(selected);
@@ -1592,6 +1649,170 @@ function toggleChartGroup(group){
 
 function renderFoodChart(){renderCustomCharts();}
 function renderCarChart(){}
+
+function renderInsights(){
+  const e=lang==='en';
+  const container=document.getElementById('insightsCard');
+  if(!container)return;
+  const insights=[];
+
+  // Always base insights on last 3 completed months (x-1, x-2, x-3)
+  const now=new Date();
+  const months=[];
+  for(let i=1;i<=3;i++){
+    const d=new Date(now.getFullYear(),now.getMonth()-i,1);
+    const key=getMonthKey(d);
+    const spent=getTotalSpentInKey(key,true);
+    // Get net salary for that specific month
+    const savedDate=currentDate;
+    currentDate=d;
+    const net=getNet();
+    currentDate=savedDate;
+    months.push({key,spent,net,d});
+  }
+  const last=months[0];   // x-1 (last completed month)
+  const prev=months[1];   // x-2
+  const older=months[2];  // x-3
+
+  const lastMonthName=monthKeyToLabel(last.key);
+
+  // Insight 1: last month spending vs month before
+  if(prev.spent>0 && last.spent>0){
+    const diff=last.spent-prev.spent;
+    const pct=Math.round(Math.abs(diff)/prev.spent*100);
+    if(diff>0){
+      insights.push({
+        icon:'📈', type:'warning',
+        text: e
+          ? `In <strong>${lastMonthName}</strong> you spent <strong>${fmt(diff)} more</strong> than the month before (+${pct}%)`
+          : `ב<strong>${lastMonthName}</strong> הוצאת <strong>${fmt(diff)} יותר</strong> מהחודש שלפני (+${pct}%)`
+      });
+    } else if(diff<0){
+      insights.push({
+        icon:'📉', type:'positive',
+        text: e
+          ? `In <strong>${lastMonthName}</strong> you spent <strong>${fmt(Math.abs(diff))} less</strong> than the month before (${pct}% down)`
+          : `ב<strong>${lastMonthName}</strong> הוצאת <strong>${fmt(Math.abs(diff))} פחות</strong> מהחודש שלפני (${pct}% פחות)`
+      });
+    }
+  }
+
+  // Insight 2: savings rate last month
+  if(last.net>0 && last.spent>0){
+    const saved=last.net-last.spent;
+    const rate=Math.round((saved/last.net)*100);
+    if(rate>=20){
+      insights.push({
+        icon:'🎉', type:'positive',
+        text: e
+          ? `<strong>${lastMonthName}</strong> was a great month — savings rate <strong>${rate}%</strong> (${fmt(saved)} saved)`
+          : `<strong>${lastMonthName}</strong> היה חודש מצוין — שיעור חיסכון <strong>${rate}%</strong> (חסכת ${fmt(saved)})`
+      });
+    } else if(rate<0){
+      insights.push({
+        icon:'⚠️', type:'negative',
+        text: e
+          ? `In <strong>${lastMonthName}</strong> you went <strong>${fmt(Math.abs(saved))} over</strong> your net salary`
+          : `ב<strong>${lastMonthName}</strong> חרגת ב-<strong>${fmt(Math.abs(saved))}</strong> מעל המשכורת`
+      });
+    } else {
+      insights.push({
+        icon:'💡', type:'warning',
+        text: e
+          ? `Your savings rate in <strong>${lastMonthName}</strong> was <strong>${rate}%</strong> — ${rate<10?'try to save more next month':'not bad, keep going!'}`
+          : `שיעור החיסכון שלך ב<strong>${lastMonthName}</strong> היה <strong>${rate}%</strong> — ${rate<10?'כדאי לחסוך יותר':'לא רע, המשך!'}`
+      });
+    }
+  }
+
+  // Show top 2 insights
+  container.innerHTML=insights.slice(0,2).map(ins=>
+    `<div class="insight-card ${ins.type}"><div class="insight-icon">${ins.icon}</div><div class="insight-text">${ins.text}</div></div>`
+  ).join('');
+}
+
+function renderSpendTrendChart(){
+  const e=lang==='en';
+  const lbl=document.getElementById('lbl_spendTrendChart');
+  if(lbl)lbl.textContent=e?'📉 Spending Trend — Last 12 Months':'📉 מגמת הוצאות — 12 חודשים אחרונים';
+  const canvas=document.getElementById('spendTrendChart');
+  if(!canvas)return;
+  const monthsArr=[];
+  for(let i=11;i>=0;i--){
+    const d=new Date(currentDate.getFullYear(),currentDate.getMonth()-i,1);
+    monthsArr.push({key:getMonthKey(d),label:monthKeyToLabel(getMonthKey(d)).slice(0,6)});
+  }
+  const labels=monthsArr.map(m=>m.label);
+  const data=monthsArr.map(m=>getTotalSpentInKey(m.key,true));
+  if(spendTrendChart){spendTrendChart.destroy();spendTrendChart=null;}
+  spendTrendChart=new Chart(canvas,{
+    type:'line',
+    data:{labels,datasets:[{
+      label:e?'Expenses':'הוצאות',
+      data,
+      borderColor:'#ef4444',
+      backgroundColor:'rgba(239,68,68,0.1)',
+      borderWidth:2,
+      pointBackgroundColor:'#ef4444',
+      pointRadius:3,
+      tension:0.3,
+      fill:true,
+    }]},
+    options:{responsive:true,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>fmt(ctx.parsed.y)}}},
+      scales:{
+        x:{ticks:{color:CHART_DEFAULTS.color,font:CHART_DEFAULTS.font,maxRotation:45},grid:{color:CHART_DEFAULTS.grid.color}},
+        y:{ticks:{color:CHART_DEFAULTS.color,font:CHART_DEFAULTS.font,callback:v=>fmt(v)},grid:{color:CHART_DEFAULTS.grid.color},beginAtZero:true}
+      }
+    }
+  });
+}
+
+function renderSavingsRateChart(){
+  const e=lang==='en';
+  const lbl=document.getElementById('lbl_savingsRateChart');
+  if(lbl)lbl.textContent=e?'💰 Savings Rate — Last 12 Months':'💰 שיעור חיסכון — 12 חודשים אחרונים';
+  const canvas=document.getElementById('savingsRateChart');
+  if(!canvas)return;
+  const saved=currentDate;
+  const monthsArr=[];
+  for(let i=11;i>=0;i--){
+    const d=new Date(saved.getFullYear(),saved.getMonth()-i,1);
+    monthsArr.push({key:getMonthKey(d),label:monthKeyToLabel(getMonthKey(d)).slice(0,6),d});
+  }
+  const labels=monthsArr.map(m=>m.label);
+  const data=monthsArr.map(m=>{
+    currentDate=m.d;
+    const net=getNet();
+    const spent=getTotalSpentInKey(m.key,true);
+    currentDate=saved;
+    if(net<=0)return null;
+    return Math.round(((net-spent)/net)*100);
+  });
+  if(savingsRateChart){savingsRateChart.destroy();savingsRateChart=null;}
+  savingsRateChart=new Chart(canvas,{
+    type:'line',
+    data:{labels,datasets:[{
+      label:e?'Savings Rate %':'% חיסכון',
+      data,
+      borderColor:'#10b981',
+      backgroundColor:'rgba(16,185,129,0.1)',
+      borderWidth:2,
+      pointBackgroundColor:data.map(v=>v===null?'transparent':v>=0?'#10b981':'#ef4444'),
+      pointRadius:3,
+      tension:0.3,
+      fill:true,
+      spanGaps:true,
+    }]},
+    options:{responsive:true,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>ctx.parsed.y+'%'}}},
+      scales:{
+        x:{ticks:{color:CHART_DEFAULTS.color,font:CHART_DEFAULTS.font,maxRotation:45},grid:{color:CHART_DEFAULTS.grid.color}},
+        y:{ticks:{color:CHART_DEFAULTS.color,font:CHART_DEFAULTS.font,callback:v=>v+'%'},grid:{color:CHART_DEFAULTS.grid.color}}
+      }
+    }
+  });
+}
 
 function renderNetIncomeChart(){
   const e=lang==='en';
@@ -1711,7 +1932,69 @@ function renderNetIncomeChart(){
   });
 }
 
-// ── Pie charts ───────────────────────────────────────────
+// ── Analysis chart visibility ────────────────────────────
+const ANALYSIS_CHARTS_DEF=[
+  {id:'insights',    icon:'💡', labelEn:'Smart Insights',        labelHe:'תובנות חכמות',       descEn:'1-2 auto-generated insights based on last month',         descHe:'1-2 תובנות אוטומטיות מהחודש שעבר'},
+  {id:'incomeExp',   icon:'💰', labelEn:'Income vs Expenses',    labelHe:'הכנסות מול הוצאות',  descEn:'Monthly bar chart for the current year',                   descHe:'גרף עמודות חודשי לשנה הנוכחית'},
+  {id:'spendTrend',  icon:'📉', labelEn:'Spending Trend',        labelHe:'מגמת הוצאות',        descEn:'Line chart of total spending over the last 12 months',     descHe:'גרף קו של סך הוצאות ב-12 חודשים אחרונים'},
+  {id:'savingsRate', icon:'📈', labelEn:'Savings Rate',          labelHe:'שיעור חיסכון',       descEn:'What % of your salary you saved each month',               descHe:'כמה % מהמשכורת חסכת כל חודש'},
+  {id:'cat1',        icon:'📊', labelEn:'Category Chart 1',      labelHe:'גרף קטגוריה 1',      descEn:'Stacked bar for your 1st chosen category group (choose below)',           descHe:'גרף מוערם לקבוצת הקטגוריה הראשונה (בחר למטה)'},
+  {id:'cat2',        icon:'📊', labelEn:'Category Chart 2',      labelHe:'גרף קטגוריה 2',      descEn:'Stacked bar for your 2nd chosen category group (choose below)',           descHe:'גרף מוערם לקבוצת הקטגוריה השנייה (בחר למטה)'},
+  {id:'netIncome',   icon:'💜', labelEn:'Net Income',            labelHe:'הכנסה נטו',          descEn:'Bar chart of net salary by month — all time or by year',   descHe:'גרף עמודות של נטו לפי חודש'},
+];
+
+function getChartVisibility(){
+  const saved=ls('analysis_charts_visible',null);
+  if(saved) return saved;
+  // All visible by default
+  const def={};
+  ANALYSIS_CHARTS_DEF.forEach(c=>{def[c.id]=true;});
+  return def;
+}
+function saveChartVisibility(v){lsSet('analysis_charts_visible',v);}
+function isChartVisible(id){return getChartVisibility()[id]!==false;}
+
+function toggleChartVisible(id){
+  const v=getChartVisibility();
+  v[id]=!v[id];
+  saveChartVisibility(v);
+  renderChartVisibilityPicker();
+  renderAnalysisView();
+}
+
+function renderChartVisibilityPicker(){
+  const e=lang==='en';
+  const container=document.getElementById('chartVisibilityPicker');
+  if(!container)return;
+  const v=getChartVisibility();
+  container.innerHTML='';
+  ANALYSIS_CHARTS_DEF.forEach(chart=>{
+    const isOn=v[chart.id]!==false;
+    const row=document.createElement('div');
+    row.style.cssText='display:flex;align-items:center;gap:12px;padding:10px 14px;margin:0 0 6px;background:var(--surface);border:1px solid var(--border);border-radius:12px;cursor:pointer;';
+    row.onclick=()=>toggleChartVisible(chart.id);
+    const left=document.createElement('div');
+    left.style.cssText='flex:1;';
+    const top=document.createElement('div');
+    top.style.cssText='display:flex;align-items:center;gap:8px;font-size:14px;font-weight:600;';
+    top.textContent=chart.icon+' '+(e?chart.labelEn:chart.labelHe);
+    const desc=document.createElement('div');
+    desc.style.cssText='font-size:11px;color:var(--text-muted);margin-top:2px;';
+    desc.textContent=e?chart.descEn:chart.descHe;
+    left.appendChild(top);
+    left.appendChild(desc);
+    const toggle=document.createElement('div');
+    toggle.style.cssText='width:38px;height:22px;border-radius:11px;background:'+(isOn?'var(--amber)':'var(--surface2)')+';border:1px solid '+(isOn?'var(--amber)':'var(--border)')+';position:relative;flex-shrink:0;transition:background 0.2s;';
+    const knob=document.createElement('div');
+    knob.style.cssText='width:16px;height:16px;border-radius:50%;background:#fff;position:absolute;top:2px;transition:left 0.2s;left:'+(isOn?'18px':'2px')+';';
+    toggle.appendChild(knob);
+    row.appendChild(left);
+    row.appendChild(toggle);
+    container.appendChild(row);
+  });
+}
+
+
 const PIE_COLORS=['#f59e0b','#3b82f6','#10b981','#ef4444','#8b5cf6','#f97316','#06b6d4','#84cc16','#ec4899','#a78bfa'];
 function populatePieSelects(){
   const allKeys=getAllMonthKeys();
@@ -1992,7 +2275,7 @@ function openSettingsPanel(panel){
   else if(panel==='catbudget'){document.getElementById('settingsPanelCatbudget').classList.add('active');renderCategorySettings();}
   else if(panel==='shared'){document.getElementById('settingsPanelShared').classList.add('active');renderSettings();}
   else if(panel==='theme'){document.getElementById('settingsPanelTheme').classList.add('active');renderThemeGrid();}
-  else if(panel==='charts'){document.getElementById('settingsPanelCharts').classList.add('active');renderChartGroupPicker();}
+  else if(panel==='charts'){document.getElementById('settingsPanelCharts').classList.add('active');renderChartVisibilityPicker();renderChartGroupPicker();}
   else if(panel==='backup'){document.getElementById('settingsPanelBackup').classList.add('active');updateLastBackupLabel();}
 }
 
