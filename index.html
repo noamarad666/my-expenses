@@ -1289,7 +1289,7 @@ function renderBudgetView(){
     html+=`<div class="group-header">${group}</div>`;
     visibleCats.forEach(cat=>{
       const spent=getCatSpent(cat.id),budget=getCatBudget(cat.id);
-      const pct=budget>0?(spent/budget)*100:(spent>0?999:0);
+      const pct=budget>0?(spent/budget)*100:0;
       const cls=pctClass(pct),alertCls=pct>=100?'alert-over':pct>=80?'alert-warn':'';
       html+=`<div class="category-row ${alertCls}" onclick="openAddModal('${cat.id}')">
         <div class="cat-icon">${cat.icon}</div>
