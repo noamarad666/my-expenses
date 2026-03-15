@@ -33,8 +33,8 @@
   .month-label{font-size:14px;font-weight:500;color:var(--text-muted);min-width:70px;text-align:center;}
 
   /* Summary */
-  .summary-bar{background:linear-gradient(135deg,#1e2235 0%,#16192a 100%);margin:16px;border-radius:16px;padding:16px;border:1px solid var(--border);position:relative;overflow:hidden;}
-  .summary-bar::before{content:'';position:absolute;top:-20px;left:-20px;width:100px;height:100px;background:radial-gradient(circle,rgba(245,158,11,0.15) 0%,transparent 70%);pointer-events:none;}
+  .summary-bar{background:var(--surface);margin:16px;border-radius:16px;padding:16px;border:1px solid var(--border);position:relative;overflow:hidden;}
+  .summary-bar::before{content:'';position:absolute;top:-20px;left:-20px;width:100px;height:100px;background:radial-gradient(circle,rgba(var(--amber-rgb,245,158,11),0.1) 0%,transparent 70%);pointer-events:none;}
   .summary-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;}
   .summary-item{text-align:center;}
   .summary-item .label{font-size:10px;color:var(--text-muted);margin-bottom:4px;text-transform:uppercase;letter-spacing:0.5px;}
@@ -171,8 +171,8 @@
 
   /* Chart cards */
   .chart-card{margin:0 8px 10px;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:14px 16px;overflow:hidden;}
-  .chart-card h3{font-size:13px;color:var(--text-muted);margin-bottom:10px;font-weight:500;text-transform:uppercase;letter-spacing:0.5px;}
-  .chart-card canvas{width:100%!important;max-width:100%;}
+  .chart-card h3{font-size:13px;color:var(--text);margin-bottom:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.5px;}
+  .chart-card canvas{width:100%!important;max-width:100%;background:transparent;}
 
   /* Pie charts */
   .pie-controls{display:flex;gap:8px;padding:0 8px 10px;}
@@ -255,8 +255,7 @@
 
   /* Color theme swatches */
   .theme-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;padding:4px 0;}
-  .theme-swatch{border-radius:14px;padding:12px 8px;text-align:center;cursor:pointer;border:2px solid transparent;transition:all 0.15s;font-size:12px;font-weight:600;}
-  .theme-swatch.active{border-color:white;}
+  .theme-swatch{border-radius:14px;padding:12px 8px;text-align:center;cursor:pointer;transition:all 0.15s;font-size:12px;font-weight:600;}
   .theme-swatch .sw-dots{display:flex;gap:4px;justify-content:center;margin-bottom:6px;}
   .theme-swatch .sw-dot{width:12px;height:12px;border-radius:50%;}
   /* Salary timeline */
@@ -347,12 +346,12 @@
   </div>
   <!-- Monthly spending trend -->
   <div class="chart-card">
-    <h3 id="lbl_spendTrendChart">📉 מגמת הוצאות — 12 חודשים אחרונים</h3>
+    <h3 id="lbl_spendTrendChart" style="color:var(--text)">📉 מגמת הוצאות — 12 חודשים אחרונים</h3>
     <canvas id="spendTrendChart" height="140"></canvas>
   </div>
   <!-- Savings rate -->
   <div class="chart-card">
-    <h3 id="lbl_savingsRateChart">💰 שיעור חיסכון — 12 חודשים אחרונים</h3>
+    <h3 id="lbl_savingsRateChart" style="color:var(--text)">💰 שיעור חיסכון — 12 חודשים אחרונים</h3>
     <canvas id="savingsRateChart" height="140"></canvas>
   </div>
   <!-- Custom chart 1 -->
@@ -370,7 +369,7 @@
   <!-- Net income chart -->
   <div class="chart-card">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;">
-      <h3 id="lbl_netIncomeChart" style="margin:0">📊 הכנסה נטו</h3>
+      <h3 id="lbl_netIncomeChart" style="margin:0;color:var(--text)">🔢 הכנסה נטו</h3>
       <select id="netIncomeYear" onchange="renderNetIncomeChart()" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'Heebo',sans-serif;font-size:12px;padding:4px 8px;outline:none;"></select>
     </div>
     <canvas id="netIncomeChart" height="140"></canvas>
@@ -502,6 +501,7 @@
           <button onclick="toggleNicoleVisible()" id="nicoleToggleBtn" style="background:var(--surface2);border:1px solid var(--border);color:var(--text-muted);border-radius:8px;padding:4px 10px;font-family:'Heebo',sans-serif;font-size:12px;font-weight:600;cursor:pointer;">הסתר</button>
         </div>
       </div>
+      <div id="lbl_nicoleHint" style="font-size:12px;color:var(--text-muted);padding:0 4px 12px;line-height:1.5;">Tap ✏️ to change the name of the person or group. Tap Hide to remove this section from the Saving tab entirely.</div>
       <div id="nicoleSectionBody">
         <div class="settings-row">
           <label id="lbl_nicoleRent">שכר דירה משותף (₪)</label>
@@ -726,12 +726,13 @@ function renderStaticUI(){
   const btnTIC=document.getElementById('btn_textInputCancel');if(btnTIC)btnTIC.textContent=e?'Cancel':'ביטול';
   const smiCatbudget=document.getElementById('smi_catbudget');if(smiCatbudget)smiCatbudget.textContent=e?'Categories & Budget':'קטגוריות ותקציב';
   const smiCatbudgetSub=document.getElementById('smi_catbudget_sub');if(smiCatbudgetSub)smiCatbudgetSub.textContent=e?'Visibility & per-category budget':'הצגה, תקציב לכל קטגוריה';
-  const lbCats=document.getElementById('lbl_catsSection');if(lbCats)lbCats.textContent=e?'Categories — ✓ show | budget | delete':'קטגוריות — ✓ מוצג | תקציב | מחיקה';
+  const lbCats=document.getElementById('lbl_catsSection');if(lbCats)lbCats.textContent=e?'Tick ✓ for a subcategory to appear in Monthly view. Set a budget to color it: green = on track, orange = 80%+ used, red = over budget':'סמן ✓ כדי שהקטגוריה תופיע בלשונית החודשית. קבע תקציב לצביעה: ירוק = בסדר, כתום = 80%+, אדום = חריגה';
   renderCustomCharts();
   const smiSalary=document.getElementById('smi_salary');if(smiSalary)smiSalary.textContent=e?'Salary & Income':'משכורת והכנסות';
   const smiSalarySub=document.getElementById('smi_salary_sub');if(smiSalarySub)smiSalarySub.textContent=e?'Gross, taxes, deductions':'ברוטו, מיסים, ניכויים';
   const smiShared=document.getElementById('smi_shared');if(smiShared)smiShared.textContent=(e?'Shared with ':'שיתוף עם ')+((getNicole().name)||'Nicole');
-  const smiSharedSub=document.getElementById('smi_shared_sub');if(smiSharedSub)smiSharedSub.textContent=e?'Split expenses calculation':'חישוב חלק משותף';
+  const lbNicoleHint=document.getElementById('lbl_nicoleHint');if(lbNicoleHint)lbNicoleHint.textContent=e?'Tap ✏️ to change the name of the person or group. Tap Hide to remove this section from the Saving tab entirely.':'לחץ ✏️ לשינוי שם האדם או הקבוצה. לחץ הסתר כדי להסיר את החלק הזה מלשונית החסכונות לחלוטין.';
+  const smiSharedSub=document.getElementById('smi_shared_sub');if(smiSharedSub)smiSharedSub.textContent=e?'Choose categories to split in half with a shared person':'בחר קטגוריות לחלוקה שווה עם אדם נוסף';
   const smiTheme=document.getElementById('smi_theme');if(smiTheme)smiTheme.textContent=e?'Color Theme':'ערכת צבעים';
   const smiThemeSub=document.getElementById('smi_theme_sub');if(smiThemeSub)smiThemeSub.textContent=e?'Choose a style':'בחר סגנון';
   const lbTheme=document.getElementById('lbl_themeSection');if(lbTheme)lbTheme.textContent=e?'Color Theme':'ערכת צבעים';
@@ -750,12 +751,12 @@ function renderStaticUI(){
   const lbSalary=document.getElementById('lbl_salarySection');if(lbSalary)lbSalary.textContent=e?'Salary & Income':'משכורת והכנסות';
   const btnAddSalary=document.getElementById('btn_addSalary');if(btnAddSalary)btnAddSalary.textContent=e?'+ Add':'+ הוסף';
   renderSalaryTimeline();
-  document.getElementById('lbl_catsSection').textContent=e?'Categories — ✓ Visible | Budget | Delete':'קטגוריות — ✓ מוצג | תקציב | מחיקה';
+  document.getElementById('lbl_catsSection').textContent=e?'Tick ✓ for a subcategory to appear in Monthly view. Set a budget to color it: green = on track, orange = 80%+ used, red = over budget':'סמן ✓ כדי שהקטגוריה תופיע בלשונית החודשית. קבע תקציב לצביעה: ירוק = בסדר, כתום = 80%+, אדום = חריגה';
   const nicoleName=(getNicole().name)||'Nicole';
   document.getElementById('lbl_nicoleSection').textContent=(e?'Shared with ':'שיתוף עם ')+nicoleName;
   document.getElementById('lbl_nicoleRent').textContent=e?'Shared Rent (₪)':'שכר דירה משותף (₪)';
   document.getElementById('lbl_nicoleVaad').textContent=e?'Shared Vaad Bait (₪)':'ועד בית משותף (₪)';
-  document.getElementById('lbl_nicoleCatsSection').textContent=e?'Split categories (half)':'קטגוריות לחלוקה (חצי)';
+  document.getElementById('lbl_nicoleCatsSection').textContent=e?'Select categories to divide in half':'בחר קטגוריות לחלוקה בחצי';
   const toggleBtn=document.getElementById('nicoleToggleBtn');
   if(toggleBtn)toggleBtn.textContent=getNicole().visible!==false?(e?'Hide':'הסתר'):(e?'Show':'הצג');
   // Modal
@@ -1487,9 +1488,15 @@ function renderSavingView(){
 
 // ── Charts ───────────────────────────────────────────────
 const CHART_DEFAULTS={
-  color:'#e8eaf0',
+  get color(){
+    const v=getComputedStyle(document.documentElement).getPropertyValue('--text-muted').trim();
+    return v||'#6b7280';
+  },
   font:{family:'Heebo',size:10},
-  grid:{color:'rgba(46,51,71,0.8)'},
+  get grid(){
+    const v=getComputedStyle(document.documentElement).getPropertyValue('--border').trim();
+    return {color:v||'rgba(46,51,71,0.8)'};
+  },
 };
 
 function currentYear(){return currentDate.getFullYear();}
@@ -1506,8 +1513,8 @@ function renderWealthChart(){
     type:'line',
     data:{labels,datasets:[{label:'סך נכסים',data:totals,borderColor:'#14b8a6',backgroundColor:'rgba(20,184,166,0.1)',tension:0.4,fill:true,pointBackgroundColor:'#14b8a6',pointRadius:3}]},
     options:{responsive:true,plugins:{legend:{display:false},tooltip:{callbacks:{label:c=>fmt(c.raw)}}},
-      scales:{x:{ticks:{color:'#6b7280',font:{size:9}},grid:{color:'rgba(46,51,71,0.6)'}},
-              y:{ticks:{color:'#6b7280',font:{size:9},callback:v=>v>=1000?(v/1000).toFixed(0)+'K':v},grid:{color:'rgba(46,51,71,0.6)'}}}}
+      scales:{x:{ticks:{color:CHART_DEFAULTS.color,font:{size:9}},grid:{color:CHART_DEFAULTS.grid.color}},
+              y:{ticks:{color:CHART_DEFAULTS.color,font:{size:9},callback:v=>v>=1000?(v/1000).toFixed(0)+'K':v},grid:{color:CHART_DEFAULTS.grid.color}}}}
   });
 }
 
@@ -1528,8 +1535,8 @@ function renderIncomeExpenseChart(){
       {label:lang==='en'?'Expenses':'הוצאות',data:expenses,backgroundColor:'rgba(239,68,68,0.7)',borderRadius:4}
     ]},
     options:{responsive:true,plugins:{legend:{labels:{color:'#9ca3af',font:{size:10},boxWidth:10}}},
-      scales:{x:{ticks:{color:'#6b7280',font:{size:9}},grid:{color:'rgba(46,51,71,0.6)'}},
-              y:{ticks:{color:'#6b7280',font:{size:9},callback:v=>v>=1000?(v/1000).toFixed(0)+'K':v},grid:{color:'rgba(46,51,71,0.6)'}}}}
+      scales:{x:{ticks:{color:CHART_DEFAULTS.color,font:{size:9}},grid:{color:CHART_DEFAULTS.grid.color}},
+              y:{ticks:{color:CHART_DEFAULTS.color,font:{size:9},callback:v=>v>=1000?(v/1000).toFixed(0)+'K':v},grid:{color:CHART_DEFAULTS.grid.color}}}}
   });
 }
 
@@ -1550,8 +1557,8 @@ function renderStackedBarChart(canvasId, chartRef, catIds, year){
     type:'bar',
     data:{labels,datasets},
     options:{responsive:true,plugins:{legend:{labels:{color:'#9ca3af',font:{size:9},boxWidth:8}}},
-      scales:{x:{stacked:true,ticks:{color:'#6b7280',font:{size:9}},grid:{color:'rgba(46,51,71,0.6)'}},
-              y:{stacked:true,ticks:{color:'#6b7280',font:{size:9},callback:v=>v>=1000?(v/1000).toFixed(0)+'K':v},grid:{color:'rgba(46,51,71,0.6)'}}}}
+      scales:{x:{stacked:true,ticks:{color:CHART_DEFAULTS.color,font:{size:9}},grid:{color:CHART_DEFAULTS.grid.color}},
+              y:{stacked:true,ticks:{color:CHART_DEFAULTS.color,font:{size:9},callback:v=>v>=1000?(v/1000).toFixed(0)+'K':v},grid:{color:CHART_DEFAULTS.grid.color}}}}
   });
   return chart;
 }
@@ -1628,8 +1635,8 @@ function renderChartGroupPicker(){
   const sub=document.getElementById('lbl_chartsSub');
   if(sub){
     const remaining=2-selected.length;
-    if(remaining>0) sub.textContent=lang==='en'?'Choose 1 or 2 groups':'בחר 1 או 2 קבוצות';
-    else sub.textContent=lang==='en'?selected.length+' group(s) selected ✓':selected.length+' קבוצות נבחרו ✓';
+    if(remaining>0) sub.textContent=lang==='en'?'Choose charts to be shown in the Analysis tab':'בחר גרפים שיוצגו בלשונית הניתוח';
+    else sub.textContent=lang==='en'?'Choose charts to be shown in the Analysis tab':'בחר גרפים שיוצגו בלשונית הניתוח';
   }
 }
 
@@ -1902,7 +1909,7 @@ function renderNetIncomeChart(){
   });
   currentDate=savedDate;
 
-  const title=selected==='all'?(e?'📊 Net Income — All Time':'📊 הכנסה נטו — כל הזמן'):(e?'📊 Net Income — '+selected:'📊 הכנסה נטו — '+selected);
+  const title=selected==='all'?(e?'🔢 Net Income — All Time':'🔢 הכנסה נטו — כל הזמן'):(e?'🔢 Net Income — '+selected:'🔢 הכנסה נטו — '+selected);
   document.getElementById('lbl_netIncomeChart').textContent=title;
 
   // Build legend for named entries
@@ -1952,7 +1959,7 @@ const ANALYSIS_CHARTS_DEF=[
   {id:'savingsRate', icon:'📈', labelEn:'Savings Rate',          labelHe:'שיעור חיסכון',       descEn:'What % of your salary you saved each month',               descHe:'כמה % מהמשכורת חסכת כל חודש'},
   {id:'cat1',        icon:'📊', labelEn:'Category Chart 1',      labelHe:'גרף קטגוריה 1',      descEn:'Stacked bar for your 1st chosen category group (choose below)',           descHe:'גרף מוערם לקבוצת הקטגוריה הראשונה (בחר למטה)'},
   {id:'cat2',        icon:'📊', labelEn:'Category Chart 2',      labelHe:'גרף קטגוריה 2',      descEn:'Stacked bar for your 2nd chosen category group (choose below)',           descHe:'גרף מוערם לקבוצת הקטגוריה השנייה (בחר למטה)'},
-  {id:'netIncome',   icon:'💜', labelEn:'Net Income',            labelHe:'הכנסה נטו',          descEn:'Bar chart of net salary by month — all time or by year',   descHe:'גרף עמודות של נטו לפי חודש'},
+  {id:'netIncome',   icon:'🔢', labelEn:'Net Income',            labelHe:'הכנסה נטו',          descEn:'Bar chart of net salary by month — all time or by year',   descHe:'גרף עמודות של נטו לפי חודש'},
 ];
 
 function getChartVisibility(){
@@ -2236,12 +2243,17 @@ function switchTab(tab){
 
 // ── Settings drill-down ───────────────────────────────────
 const THEMES = [
-  {id:'dark',    label:'Dark',      bg:'#0f1117', surface:'#1a1d27', amber:'#f59e0b', accent:'#14b8a6'},
-  {id:'midnight',label:'Midnight',  bg:'#0a0e1a', surface:'#131929', amber:'#818cf8', accent:'#38bdf8'},
-  {id:'forest',  label:'Forest',    bg:'#0d1a12', surface:'#152010', amber:'#4ade80', accent:'#34d399'},
-  {id:'rose',    label:'Rose',      bg:'#1a0d14', surface:'#261218', amber:'#f472b6', accent:'#fb7185'},
-  {id:'slate',   label:'Slate',     bg:'#111827', surface:'#1f2937', amber:'#fbbf24', accent:'#60a5fa'},
-  {id:'purple',  label:'Purple',    bg:'#12091a', surface:'#1e1030', amber:'#c084fc', accent:'#a78bfa'},
+  // Dark themes
+  {id:'dark',         label:'Dark',         bg:'#0f1117', surface:'#1a1d27', amber:'#f59e0b', accent:'#14b8a6', text:'#e8eaf0', textMuted:'#6b7280', border:'#2e3347'},
+  {id:'midnight',     label:'Midnight',     bg:'#0a0e1a', surface:'#131929', amber:'#818cf8', accent:'#38bdf8', text:'#e8eaf0', textMuted:'#6b7280', border:'#1e2640'},
+  {id:'forest',       label:'Forest',       bg:'#0d1a12', surface:'#152010', amber:'#4ade80', accent:'#34d399', text:'#e8eaf0', textMuted:'#6b7280', border:'#1e3020'},
+  {id:'rose',         label:'Rose',         bg:'#1a0d14', surface:'#261218', amber:'#f472b6', accent:'#fb7185', text:'#e8eaf0', textMuted:'#6b7280', border:'#3a1a28'},
+  {id:'slate',        label:'Slate',        bg:'#111827', surface:'#1f2937', amber:'#fbbf24', accent:'#60a5fa', text:'#e8eaf0', textMuted:'#6b7280', border:'#374151'},
+  {id:'purple',       label:'Purple',       bg:'#12091a', surface:'#1e1030', amber:'#c084fc', accent:'#a78bfa', text:'#e8eaf0', textMuted:'#6b7280', border:'#2d1a4a'},
+  // Light themes
+  {id:'light',        label:'Light',        bg:'#f8f9fa', surface:'#ffffff', amber:'#d97706', accent:'#0d9488', text:'#111827', textMuted:'#6b7280', border:'#e5e7eb'},
+  {id:'light-rose',   label:'Light Rose',   bg:'#fff1f5', surface:'#ffffff', amber:'#db2777', accent:'#e879a0', text:'#1f0a14', textMuted:'#9f7585', border:'#fbc4d5'},
+  {id:'light-slate',  label:'Light Slate',  bg:'#f1f5f9', surface:'#ffffff', amber:'#2563eb', accent:'#0891b2', text:'#0f172a', textMuted:'#64748b', border:'#cbd5e1'},
 ];
 
 function applyTheme(themeId){
@@ -2249,9 +2261,12 @@ function applyTheme(themeId){
   const r=document.documentElement.style;
   r.setProperty('--bg',t.bg);
   r.setProperty('--surface',t.surface);
-  r.setProperty('--surface2',adjustColor(t.surface,15));
+  r.setProperty('--surface2',adjustColor(t.surface, t.id.startsWith('light')?-8:15));
   r.setProperty('--amber',t.amber);
   r.setProperty('--teal',t.accent);
+  r.setProperty('--text',t.text||'#e8eaf0');
+  r.setProperty('--text-muted',t.textMuted||'#6b7280');
+  r.setProperty('--border',t.border||'#2e3347');
   localStorage.setItem('app_theme',themeId);
   renderThemeGrid();
 }
@@ -2268,16 +2283,21 @@ function renderThemeGrid(){
   const cur=localStorage.getItem('app_theme')||'dark';
   const grid=document.getElementById('themeGrid');
   if(!grid)return;
-  grid.innerHTML=THEMES.map(t=>`
-    <div class="theme-swatch ${t.id===cur?'active':''}" onclick="applyTheme('${t.id}')"
-      style="background:${t.bg};color:#fff;">
-      <div class="sw-dots">
-        <div class="sw-dot" style="background:${t.amber}"></div>
-        <div class="sw-dot" style="background:${t.accent}"></div>
-        <div class="sw-dot" style="background:${t.surface}"></div>
-      </div>
-      ${t.label}
-    </div>`).join('');
+  const darkThemes=THEMES.filter(t=>!t.id.startsWith('light'));
+  const lightThemes=THEMES.filter(t=>t.id.startsWith('light'));
+  const e=lang==='en';
+  grid.innerHTML=
+    '<div style="font-size:11px;color:var(--text-muted);padding:0 2px 6px;grid-column:1/-1;">'+(e?'🌙 Dark':'🌙 כהה')+'</div>'
+    +darkThemes.map(t=>'<div class="theme-swatch '+(t.id===cur?'active':'')+'" data-tid="'+t.id+'" style="background:'+t.bg+';color:'+(t.text||'#fff')+';border:2px solid '+(t.id===cur?t.amber:'transparent')+';">'
+      +'<div class="sw-dots"><div class="sw-dot" style="background:'+t.amber+'"></div><div class="sw-dot" style="background:'+t.accent+'"></div><div class="sw-dot" style="background:'+t.surface+'"></div></div>'
+      +t.label+'</div>').join('')
+    +'<div style="font-size:11px;color:var(--text-muted);padding:10px 2px 6px;grid-column:1/-1;">'+(e?'☀️ Light':'☀️ בהיר')+'</div>'
+    +lightThemes.map(t=>'<div class="theme-swatch '+(t.id===cur?'active':'')+'" data-tid="'+t.id+'" style="background:'+t.bg+';color:'+(t.text||'#111')+';border:2px solid '+(t.id===cur?t.amber:'transparent')+';">'
+      +'<div class="sw-dots"><div class="sw-dot" style="background:'+t.amber+'"></div><div class="sw-dot" style="background:'+t.accent+'"></div><div class="sw-dot" style="background:'+t.surface+'"></div></div>'
+      +t.label+'</div>').join('');
+  grid.querySelectorAll('.theme-swatch').forEach(el=>{
+    el.addEventListener('click',()=>applyTheme(el.dataset.tid));
+  });
 }
 
 function openSettingsPanel(panel){
