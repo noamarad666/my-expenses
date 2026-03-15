@@ -342,7 +342,7 @@
 
   <!-- Income vs Expenses chart -->
   <div class="chart-card">
-    <h3 id="lbl_incomeChart">💰 הכנסות מול הוצאות — שנה נוכחית</h3>
+    <h3 id="lbl_incomeChart">⚖️ הכנסות מול הוצאות — שנה נוכחית</h3>
     <canvas id="incomeExpenseChart" height="160"></canvas>
   </div>
   <!-- Monthly spending trend -->
@@ -742,7 +742,7 @@ function renderStaticUI(){
   document.getElementById('lbl_wealthTitle').textContent=e?'Total Savings':'סך הכל חסכונות';
   document.getElementById('btn_wealthEdit').textContent=e?'✏️ Update this month':'✏️ עדכן יתרות לחודש זה';
   document.getElementById('lbl_wealthChart').textContent=e?'📈 Savings Trend — Current Year':'📈 תוספת לחסכון — שנה נוכחית';
-  document.getElementById('lbl_incomeChart').textContent=e?'💰 Income vs Expenses — Current Year':'💰 הכנסות מול הוצאות — שנה נוכחית';
+  document.getElementById('lbl_incomeChart').textContent=e?'⚖️ Income vs Expenses — Current Year':'⚖️ הכנסות מול הוצאות — שנה נוכחית';
   const lbSpend=document.getElementById('lbl_spendTrendChart');if(lbSpend)lbSpend.textContent=e?'📉 Spending Trend — Last 12 Months':'📉 מגמת הוצאות — 12 חודשים אחרונים';
   const lbSave=document.getElementById('lbl_savingsRateChart');if(lbSave)lbSave.textContent=e?'💰 Savings Rate — Last 12 Months':'💰 שיעור חיסכון — 12 חודשים אחרונים';
   document.getElementById('lbl_pieSection').textContent=e?'Month Comparison':'השוואת חודשים';
@@ -1947,7 +1947,7 @@ function renderNetIncomeChart(){
 // ── Analysis chart visibility ────────────────────────────
 const ANALYSIS_CHARTS_DEF=[
   {id:'insights',    icon:'💡', labelEn:'Smart Insights',        labelHe:'תובנות חכמות',       descEn:'1-2 auto-generated insights based on last month',         descHe:'1-2 תובנות אוטומטיות מהחודש שעבר'},
-  {id:'incomeExp',   icon:'💰', labelEn:'Income vs Expenses',    labelHe:'הכנסות מול הוצאות',  descEn:'Monthly bar chart for the current year',                   descHe:'גרף עמודות חודשי לשנה הנוכחית'},
+  {id:'incomeExp',   icon:'⚖️', labelEn:'Income vs Expenses',    labelHe:'הכנסות מול הוצאות',  descEn:'Monthly bar chart for the current year',                   descHe:'גרף עמודות חודשי לשנה הנוכחית'},
   {id:'spendTrend',  icon:'📉', labelEn:'Spending Trend',        labelHe:'מגמת הוצאות',        descEn:'Line chart of total spending over the last 12 months',     descHe:'גרף קו של סך הוצאות ב-12 חודשים אחרונים'},
   {id:'savingsRate', icon:'📈', labelEn:'Savings Rate',          labelHe:'שיעור חיסכון',       descEn:'What % of your salary you saved each month',               descHe:'כמה % מהמשכורת חסכת כל חודש'},
   {id:'cat1',        icon:'📊', labelEn:'Category Chart 1',      labelHe:'גרף קטגוריה 1',      descEn:'Stacked bar for your 1st chosen category group (choose below)',           descHe:'גרף מוערם לקבוצת הקטגוריה הראשונה (בחר למטה)'},
