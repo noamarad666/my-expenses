@@ -1737,11 +1737,16 @@ function renderSpendTrendChart(){
   if(lbl)lbl.textContent=e?'📉 Spending Trend — Last 12 Months':'📉 מגמת הוצאות — 12 חודשים אחרונים';
   const canvas=document.getElementById('spendTrendChart');
   if(!canvas)return;
-  const monthsArr=[];
   const today=new Date();
+  const mNames=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const mNamesHe=['ינו','פבר','מרץ','אפר','מאי','יוני','יולי','אוג','ספט','אוק','נוב','דצמ'];
+  const monthsArr=[];
   for(let i=11;i>=0;i--){
     const d=new Date(today.getFullYear(),today.getMonth()-i,1);
-    const k=getMonthKey(d);const[yr,mo]=k.split('-');const mNames=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];const mNamesHe=['ינו','פבר','מרץ','אפר','מאי','יוני','יולי','אוג','ספט','אוק','נוב','דצמ'];const mLabel=(lang==='en'?mNames:mNamesHe)[parseInt(mo)-1]+' '+yr.slice(2);monthsArr.push({key:k,label:mLabel});
+    const k=getMonthKey(d);
+    const[yr,mo]=k.split('-');
+    const mLabel=(lang==='en'?mNames:mNamesHe)[parseInt(mo)-1]+' '+yr.slice(2);
+    monthsArr.push({key:k,label:mLabel,d});
   }
   const labels=monthsArr.map(m=>m.label);
   const data=monthsArr.map(m=>getTotalSpentInKey(m.key,true));
@@ -1752,12 +1757,12 @@ function renderSpendTrendChart(){
       label:e?'Expenses':'הוצאות',
       data,
       borderColor:'#ef4444',
-      backgroundColor:'rgba(239,68,68,0.1)',
+      backgroundColor:'transparent',
       borderWidth:2,
       pointBackgroundColor:'#ef4444',
       pointRadius:3,
       tension:0.3,
-      fill:true,
+      fill:false,
     }]},
     options:{responsive:true,
       plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>fmt(ctx.parsed.y)}}},
@@ -1775,14 +1780,19 @@ function renderSavingsRateChart(){
   if(lbl)lbl.textContent=e?'💰 Savings Rate — Last 12 Months':'💰 שיעור חיסכון — 12 חודשים אחרונים';
   const canvas=document.getElementById('savingsRateChart');
   if(!canvas)return;
-  const saved=currentDate;
   const today=new Date();
+  const mNames=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const mNamesHe=['ינו','פבר','מרץ','אפר','מאי','יוני','יולי','אוג','ספט','אוק','נוב','דצמ'];
   const monthsArr=[];
   for(let i=11;i>=0;i--){
     const d=new Date(today.getFullYear(),today.getMonth()-i,1);
-    const k=getMonthKey(d);const[yr,mo]=k.split('-');const mNames=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];const mNamesHe=['ינו','פבר','מרץ','אפר','מאי','יוני','יולי','אוג','ספט','אוק','נוב','דצמ'];const mLabel=(lang==='en'?mNames:mNamesHe)[parseInt(mo)-1]+' '+yr.slice(2);monthsArr.push({key:k,label:mLabel,d});
+    const k=getMonthKey(d);
+    const[yr,mo]=k.split('-');
+    const mLabel=(lang==='en'?mNames:mNamesHe)[parseInt(mo)-1]+' '+yr.slice(2);
+    monthsArr.push({key:k,label:mLabel,d});
   }
   const labels=monthsArr.map(m=>m.label);
+  const saved=currentDate;
   const data=monthsArr.map(m=>{
     currentDate=m.d;
     const net=getNet();
@@ -1792,58 +1802,25 @@ function renderSavingsRateChart(){
     return Math.round(((net-spent)/net)*100);
   });
   if(savingsRateChart){savingsRateChart.destroy();savingsRateChart=null;}
-  // Split into positive and negative for clean coloring
-  const dataPos=data.map(v=>v===null?null:Math.max(v,0));
-  const dataNeg=data.map(v=>v===null?null:Math.min(v,0));
-
   savingsRateChart=new Chart(canvas,{
     type:'line',
-    data:{labels,datasets:[
-      {
-        data:dataPos,
-        borderColor:'#10b981',
-        backgroundColor:'rgba(16,185,129,0.15)',
-        borderWidth:0,
-        pointRadius:0,
-        tension:0.3,
-        fill:'origin',
-        spanGaps:true,
-      },
-      {
-        data:dataNeg,
-        borderColor:'#ef4444',
-        backgroundColor:'rgba(239,68,68,0.15)',
-        borderWidth:0,
-        pointRadius:0,
-        tension:0.3,
-        fill:'origin',
-        spanGaps:true,
-      },
-      {
-        label:e?'Savings Rate %':'% חיסכון',
-        data,
-        borderColor:'#10b981',
-        backgroundColor:'transparent',
-        borderWidth:2.5,
-        pointBackgroundColor:data.map(v=>v===null?'transparent':v>=0?'#10b981':'#ef4444'),
-        pointRadius:4,
-        pointHoverRadius:6,
-        tension:0.3,
-        fill:false,
-        spanGaps:true,
-      }
-    ]},
+    data:{labels,datasets:[{
+      label:e?'Savings Rate %':'% חיסכון',
+      data,
+      borderColor:'#10b981',
+      backgroundColor:'transparent',
+      borderWidth:2,
+      pointBackgroundColor:'#10b981',
+      pointRadius:3,
+      tension:0.3,
+      fill:false,
+      spanGaps:true,
+    }]},
     options:{responsive:true,
-      plugins:{legend:{display:false},tooltip:{
-        filter:item=>item.datasetIndex===2,
-        callbacks:{label:ctx=>ctx.parsed.y+'%'}
-      }},
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>ctx.parsed.y+'%'}}},
       scales:{
         x:{ticks:{color:CHART_DEFAULTS.color,font:CHART_DEFAULTS.font,maxRotation:45},grid:{color:CHART_DEFAULTS.grid.color}},
-        y:{ticks:{color:CHART_DEFAULTS.color,font:CHART_DEFAULTS.font,callback:v=>v+'%'},
-           grid:{color:ctx=>ctx.tick.value===0?'rgba(255,255,255,0.3)':CHART_DEFAULTS.grid.color,
-                 lineWidth:ctx=>ctx.tick.value===0?2:1},
-           afterDataLimits:axis=>{axis.max=Math.max(axis.max,10);}}
+        y:{ticks:{color:CHART_DEFAULTS.color,font:CHART_DEFAULTS.font,callback:v=>v+'%'},grid:{color:CHART_DEFAULTS.grid.color}}
       }
     }
   });
