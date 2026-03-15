@@ -114,7 +114,7 @@
   .picker-group-label{padding:8px 12px 4px;font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;font-weight:700;}
 
   /* FAB */
-  .fab{position:fixed;bottom:90px;left:20px;width:56px;height:56px;background:var(--amber);border-radius:50%;border:none;font-size:28px;cursor:pointer;box-shadow:0 4px 20px rgba(245,158,11,0.4);display:flex;align-items:center;justify-content:center;transition:transform 0.15s;z-index:150;color:#000;}
+  .fab{position:fixed;bottom:30px;left:20px;width:56px;height:56px;background:var(--amber);border-radius:50%;border:none;font-size:28px;cursor:pointer;box-shadow:0 4px 20px rgba(245,158,11,0.4);display:flex;align-items:center;justify-content:center;transition:transform 0.15s;z-index:150;color:#000;}
   .fab:hover{transform:scale(1.08);}
   .fab:active{transform:scale(0.96);}
 
@@ -1378,6 +1378,7 @@ function renderAnalysisView(){
   txs.filter(tx=>!hidden.includes(tx.catId)).forEach(tx=>{catTotals[tx.catId]=(catTotals[tx.catId]||0)+tx.amount;});
   const sorted=Object.entries(catTotals).sort((a,b)=>b[1]-a[1]).slice(0,5);
   const maxVal=sorted.length?sorted[0][1]:1;
+  const catTotal=sorted.reduce((s,[,v])=>s+v,0);
 
   let html='';
   if(salary.gross>0){
@@ -1401,9 +1402,10 @@ function renderAnalysisView(){
   if(!sorted.length){html+=`<div style="color:var(--text-muted);font-size:13px;">${lang==='en'?'No data yet':'אין נתונים עדיין'}</div>`;}
   else{sorted.forEach(([catId,val])=>{
     const cat=getAllCats().find(c=>c.id===catId);
+    const pct=catTotal>0?Math.round((val/catTotal)*100):0;
     html+=`<div class="analysis-row"><div><div class="name">${cat?cat.icon+' '+cat.name:catId}</div>
       <div class="top-cat-bar" style="width:${Math.round((val/maxVal)*100)}%"></div></div>
-      <div class="val">${fmt(val)}</div></div>`;
+      <div class="val">${fmt(val)} <span style="font-size:11px;color:var(--text-muted)">(${pct}%)</span></div></div>`;
   });}
   html+=`</div>`;
   container.innerHTML=html;
@@ -1635,7 +1637,7 @@ function renderNetIncomeChart(){
     yearSel.innerHTML='<option value="all">'+allLabel+'</option>';
     years.forEach(y=>{ const o=document.createElement('option'); o.value=y; o.textContent=y; yearSel.appendChild(o); });
     // Default to current year if available, else all
-    yearSel.value=years.includes(currentYearStr)?currentYearStr:'all';
+    yearSel.value='all';
   }
 
   const selected=yearSel.value;
@@ -1718,8 +1720,16 @@ function populatePieSelects(){
     const el=document.getElementById(id), cur=el.value;
     el.innerHTML=`<option value="">${lang==='en'?'Select month':'בחר חודש'}</option>`+allKeys.map(k=>`<option value="${k}">${keyToLabel(k)}</option>`).join('');
     if(cur&&allKeys.includes(cur))el.value=cur;
-    else if(i===0&&allKeys[0])el.value=allKeys[0];
-    else if(i===1&&allKeys[1])el.value=allKeys[1];
+    else{
+      // Default: pieMonth1 = 2 months ago, pieMonth2 = previous month
+      const now=new Date();
+      const prev1=new Date(now.getFullYear(),now.getMonth()-2,1);
+      const prev2=new Date(now.getFullYear(),now.getMonth()-1,1);
+      const k1=prev1.getFullYear()+'-'+String(prev1.getMonth()+1).padStart(2,'0');
+      const k2=prev2.getFullYear()+'-'+String(prev2.getMonth()+1).padStart(2,'0');
+      if(i===0)el.value=allKeys.includes(k1)?k1:(allKeys[0]||'');
+      if(i===1)el.value=allKeys.includes(k2)?k2:(allKeys[1]||'');
+    }
   });
 }
 function buildPieData(key){
