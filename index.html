@@ -279,6 +279,15 @@
   .insight-card.warning{border-color:rgba(245,158,11,0.3);background:rgba(245,158,11,0.06);}
   .insight-card.negative{border-color:rgba(239,68,68,0.3);background:rgba(239,68,68,0.06);}
 
+  /* Category peek popup */
+  .cat-peek{position:fixed;z-index:500;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:12px 14px;min-width:200px;max-width:280px;box-shadow:0 8px 32px rgba(0,0,0,0.3);}
+  .cat-peek-title{font-size:13px;font-weight:700;color:var(--text);margin-bottom:8px;display:flex;align-items:center;gap:6px;}
+  .cat-peek-row{display:flex;justify-content:space-between;align-items:center;padding:4px 0;border-bottom:1px solid var(--border);font-size:12px;gap:16px;}
+  .cat-peek-row:last-child{border-bottom:none;}
+  .cat-peek-date{color:var(--text-muted);}
+  .cat-peek-amount{font-weight:700;color:var(--text);}
+  .cat-peek-empty{font-size:12px;color:var(--text-muted);text-align:center;padding:4px 0;}
+
   .nicole-cat-row{display:flex;align-items:center;justify-content:space-between;padding:8px 14px;margin:0 8px 3px;background:var(--surface);border-radius:10px;border:1px solid var(--border);font-size:13px;}
   .nicole-cat-row .toggle-check{width:20px;height:20px;border-radius:6px;border:2px solid var(--border);background:var(--surface2);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:13px;flex-shrink:0;transition:all 0.15s;}
   .nicole-cat-row .toggle-check.on{background:var(--blue);border-color:var(--blue);}
@@ -565,6 +574,8 @@
     <button class="btn-secondary" style="margin-top:16px;width:100%" id="btn_closeSettings" onclick="document.getElementById('settingsModal').classList.remove('open')">סגור</button>
   </div>
 </div>
+
+<div id="catPeek" class="cat-peek" style="display:none;"></div>
 
 <button class="fab" onclick="openAddModal(null)">+</button>
 
@@ -1321,7 +1332,7 @@ function renderBudgetView(){
       const spent=getCatSpent(cat.id),budget=getCatBudget(cat.id);
       const pct=budget>0?(spent/budget)*100:0;
       const cls=pctClass(pct),alertCls=pct>=100?'alert-over':pct>=80?'alert-warn':'';
-      html+=`<div class="category-row ${alertCls}" onclick="openAddModal('${cat.id}')">
+      html+=`<div class="category-row ${alertCls}" data-catid="${cat.id}">
         <div class="cat-icon">${cat.icon}</div>
         <div class="cat-info"><div class="cat-name">${cat.name}</div>
           <div class="mini-bar"><div class="mini-bar-fill ${cls}" style="width:${budget>0?Math.min(pct,100):0}%"></div></div></div>
@@ -1330,6 +1341,61 @@ function renderBudgetView(){
     });
   }
   container.innerHTML=html;
+
+  // Attach tap + long-press to each row
+  container.querySelectorAll('.category-row').forEach(row=>{
+    const catId=row.dataset.catid;
+    let pressTimer=null;
+    let moved=false;
+
+    row.addEventListener('touchstart',e=>{
+      moved=false;
+      pressTimer=setTimeout(()=>{
+        if(!moved) showCatPeek(catId, e.touches[0].clientX, e.touches[0].clientY);
+      },450);
+    },{passive:true});
+    row.addEventListener('touchmove',()=>{moved=true; clearTimeout(pressTimer);},{passive:true});
+    row.addEventListener('touchend',e=>{
+      clearTimeout(pressTimer);
+      if(!moved && e.cancelable) row._tapped=true;
+    },{passive:true});
+    row.addEventListener('click',()=>{
+      hideCatPeek();
+      openAddModal(catId);
+    });
+
+    // Desktop: right-click or long mouse press
+    row.addEventListener('contextmenu',e=>{e.preventDefault();showCatPeek(catId,e.clientX,e.clientY);});
+  });
+}
+
+function showCatPeek(catId, x, y){
+  const e=lang==='en';
+  const txs=getMonthExpenses().filter(t=>t.catId===catId).sort((a,b)=>b.date-a.date);
+  const cat=getAllCats().find(c=>c.id===catId);
+  let html=`<div class="cat-peek-title">${cat?cat.icon+' '+cat.name:catId}</div>`;
+  if(!txs.length){
+    html+=`<div class="cat-peek-empty">${e?'No expenses this month':'אין הוצאות החודש'}</div>`;
+  } else {
+    html+=txs.map(tx=>{
+      const d=new Date(tx.date);
+      const dateStr=d.getDate()+'/'+(d.getMonth()+1);
+      const note=tx.note?` <span style="color:var(--text-muted);font-weight:400">· ${tx.note}</span>`:'';
+      return `<div class="cat-peek-row"><span class="cat-peek-date">${dateStr}${note}</span><span class="cat-peek-amount ${tx.amount<0?'':''}${tx.amount<0?'style="color:var(--green)"':''}">${fmt(Math.abs(tx.amount))}</span></div>`;
+    }).join('');
+  }
+  const peek=document.getElementById('catPeek');
+  peek.innerHTML=html;
+  peek.style.display='block';
+  // Position — keep on screen
+  const pw=280, ph=peek.offsetHeight||200;
+  const vw=window.innerWidth, vh=window.innerHeight;
+  peek.style.left=Math.min(x+8, vw-pw-16)+'px';
+  peek.style.top=Math.min(y-ph/2, vh-ph-16)+'px';
+}
+
+function hideCatPeek(){
+  document.getElementById('catPeek').style.display='none';
 }
 
 // ── History ──────────────────────────────────────────────
@@ -2587,6 +2653,14 @@ function deleteExpense(id,key){
   if(data[key])data[key]=data[key].filter(tx=>tx.id!==id);
   saveData(data);render();
 }
+
+// Close cat peek on tap outside
+document.addEventListener('touchstart',e=>{
+  const peek=document.getElementById('catPeek');
+  if(peek&&peek.style.display!=='none'&&!peek.contains(e.target)&&!e.target.closest('.category-row')){
+    hideCatPeek();
+  }
+},{passive:true});
 
 // Close modals on backdrop click
 ['addModal','wealthModal','textInputModal','settingsModal','salaryEntryModal'].forEach(id=>{
