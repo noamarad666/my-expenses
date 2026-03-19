@@ -61,7 +61,8 @@
   .tabs{display:flex;margin:0 16px 12px;gap:6px;}
   .tab{flex:1;padding:8px 4px;text-align:center;background:var(--surface);border:1px solid var(--border);border-radius:10px;font-size:12px;font-weight:500;cursor:pointer;color:var(--text-muted);transition:all 0.15s;}
   .tab.active{background:var(--amber);border-color:var(--amber);color:#000;font-weight:700;}
-  .view{display:none;}
+  .views-container{display:flex;overflow:hidden;width:100%;}
+  .view{display:block;min-width:100%;width:100%;flex-shrink:0;transition:none;}
   .view.active{display:block;}
 
   /* Budget rows */
@@ -344,6 +345,7 @@
   <div class="tab" id="tab_saving" onclick="switchTab('saving')">חסכונות</div>
 </div>
 
+<div id="viewsContainer" style="display:flex;overflow:hidden;width:100%;will-change:transform;">
 <!-- ANALYSIS (charts + comparison) -->
 <div id="view-analysis" class="view active">
   <!-- Insights card -->
@@ -430,6 +432,8 @@
   <!-- Nicole card rendered here by JS -->
   <div id="savingNicoleContent"></div>
 </div>
+
+</div><!-- /viewsContainer -->
 
 <!-- BUDGET tab (category budgets only) -->
 <!-- SETTINGS MODAL (drill-down) -->
@@ -2365,12 +2369,22 @@ function deleteGroup(group){
 }
 
 // ── Tab switching ────────────────────────────────────────
-function switchTab(tab){
+const TAB_IDS=['analysis','budget','history','saving'];
+function getViewsContainer(){return document.getElementById('viewsContainer');}
+function switchTab(tab,animate=true){
+  const idx=TAB_IDS.indexOf(tab);
+  if(idx===-1)return;
   currentTab=tab;
-  const tabIds=['analysis','budget','history','saving'];
-  document.querySelectorAll('.tab:not(.gear-tab)').forEach((t,i)=>{t.classList.toggle('active',tabIds[i]===tab);});
-  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
-  document.getElementById('view-'+tab).classList.add('active');
+  document.querySelectorAll('.tab:not(.gear-tab)').forEach((t,i)=>{t.classList.toggle('active',TAB_IDS[i]===tab);});
+  const c=getViewsContainer();
+  if(c){
+    if(animate){
+      c.style.transition='transform 0.28s cubic-bezier(0.4,0,0.2,1)';
+    } else {
+      c.style.transition='none';
+    }
+    c.style.transform='translateX(-'+idx+'00%)';
+  }
   if(tab==='analysis'){renderAnalysisView();populatePieSelects();renderPieCharts();}
   if(tab==='saving'){renderSavingView();}
 }
@@ -2850,23 +2864,52 @@ render();
 // Check backup reminder after short delay
 setTimeout(checkBackupReminder, 2000);
 
-// Swipe left/right to switch tabs
+// Smooth swipe left/right to switch tabs
 (function(){
-  const TAB_ORDER=['analysis','budget','history','saving'];
-  let startX=0,startY=0;
+  let startX=0, startY=0, dragging=false, baseOffset=0;
+  const THRESHOLD=40;
+
+  function getIdx(){ return TAB_IDS.indexOf(currentTab); }
+  function setOffset(px, animate){
+    const c=document.getElementById('viewsContainer');
+    if(!c)return;
+    c.style.transition=animate?'transform 0.28s cubic-bezier(0.4,0,0.2,1)':'none';
+    c.style.transform='translateX('+px+'px)';
+  }
+
   document.addEventListener('touchstart',e=>{
+    if(document.querySelector('.modal-overlay.open'))return;
     startX=e.touches[0].clientX;
     startY=e.touches[0].clientY;
+    baseOffset=-(getIdx()*window.innerWidth);
+    dragging=true;
+    const c=document.getElementById('viewsContainer');
+    if(c)c.style.transition='none';
   },{passive:true});
+
+  document.addEventListener('touchmove',e=>{
+    if(!dragging)return;
+    const dx=e.touches[0].clientX-startX;
+    const dy=e.touches[0].clientY-startY;
+    if(Math.abs(dy)>Math.abs(dx)){dragging=false;return;}
+    const idx=getIdx();
+    // Resist at edges
+    let offset=baseOffset+dx;
+    if((idx===0&&dx>0)||(idx===TAB_IDS.length-1&&dx<0)) offset=baseOffset+dx*0.2;
+    const c=document.getElementById('viewsContainer');
+    if(c){c.style.transition='none';c.style.transform='translateX('+offset+'px)';}
+  },{passive:true});
+
   document.addEventListener('touchend',e=>{
+    if(!dragging)return;
+    dragging=false;
     const dx=e.changedTouches[0].clientX-startX;
     const dy=e.changedTouches[0].clientY-startY;
-    if(Math.abs(dx)<60||Math.abs(dy)>Math.abs(dx))return;
-    if(document.querySelector('.modal-overlay.open'))return;
-    const cur=TAB_ORDER.indexOf(currentTab);
-    if(cur===-1)return;
-    if(dx<0&&cur<TAB_ORDER.length-1)switchTab(TAB_ORDER[cur+1]);
-    if(dx>0&&cur>0)switchTab(TAB_ORDER[cur-1]);
+    if(Math.abs(dy)>Math.abs(dx)){switchTab(currentTab,true);return;}
+    const idx=getIdx();
+    if(dx<-THRESHOLD&&idx<TAB_IDS.length-1) switchTab(TAB_IDS[idx+1],true);
+    else if(dx>THRESHOLD&&idx>0) switchTab(TAB_IDS[idx-1],true);
+    else switchTab(currentTab,true); // snap back
   },{passive:true});
 })();
 
