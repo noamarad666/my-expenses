@@ -303,6 +303,7 @@
         <span id="langOptHE" class="active">עב</span>
         <span id="langOptEN">EN</span>
       </div>
+      <button onclick="openHelpModal()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:10px;padding:5px 10px;font-size:16px;cursor:pointer;line-height:1;font-weight:700;" id="btn_help">ⓘ</button>
       <button onclick="openSettingsModal()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:10px;padding:5px 10px;font-size:18px;cursor:pointer;line-height:1;">⚙️</button>
       <div class="month-nav">
         <button onclick="changeMonth(-1)">‹</button>
@@ -512,15 +513,10 @@
       </div>
       <div id="lbl_nicoleHint" style="font-size:12px;color:var(--text-muted);padding:0 4px 12px;line-height:1.5;">Tap ✏️ to change the name of the person or group. Tap Hide to remove this section from the Saving tab entirely.</div>
       <div id="nicoleSectionBody">
-        <div class="settings-row">
-          <label id="lbl_nicoleRent">שכר דירה משותף (₪)</label>
-          <input type="number" id="nicoleRent" placeholder="0" onchange="saveNicole()">
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:0 4px 4px;">
+          <div class="section-title" id="lbl_nicoleCatsSection" style="padding:0;font-size:11px;">קטגוריות לחלוקה</div>
+          <div style="font-size:11px;color:var(--text-muted)" id="lbl_nicolePctHeader">% לחלוקה</div>
         </div>
-        <div class="settings-row">
-          <label id="lbl_nicoleVaad">ועד בית משותף (₪)</label>
-          <input type="number" id="nicoleVaad" placeholder="0" onchange="saveNicole()">
-        </div>
-        <div class="section-title" id="lbl_nicoleCatsSection" style="padding:10px 4px 6px;font-size:11px;">קטגוריות לחלוקה (חצי)</div>
         <div id="nicoleCatsList"></div>
       </div>
     </div>
@@ -665,6 +661,28 @@
   </div>
 </div>
 
+<!-- HELP MODAL -->
+<div class="modal-overlay" id="helpModal">
+  <div class="modal" style="max-height:85vh;overflow-y:auto;padding-bottom:24px;">
+    <div class="modal-handle"></div>
+    <h2 id="lbl_helpTitle" style="margin-bottom:16px;">ℹ️ מדריך השימוש</h2>
+
+    <div class="section-title" id="lbl_helpTabs" style="margin-bottom:8px;">הלשוניות</div>
+    <div id="helpTabsContent" style="font-size:13px;line-height:1.8;color:var(--text);margin-bottom:16px;"></div>
+
+    <div class="section-title" id="lbl_helpGestures" style="margin-bottom:8px;">מחוות ופעולות</div>
+    <div id="helpGesturesContent" style="font-size:13px;line-height:1.8;color:var(--text);margin-bottom:16px;"></div>
+
+    <div class="section-title" id="lbl_helpBackup" style="margin-bottom:8px;">גיבוי הנתונים</div>
+    <div id="helpBackupContent" style="font-size:13px;line-height:1.8;color:var(--text);margin-bottom:16px;"></div>
+
+    <div class="section-title" id="lbl_helpTips" style="margin-bottom:8px;">טיפים</div>
+    <div id="helpTipsContent" style="font-size:13px;line-height:1.8;color:var(--text);margin-bottom:16px;"></div>
+
+    <button class="btn-secondary" id="btn_closeHelp" onclick="document.getElementById('helpModal').classList.remove('open')" style="width:100%;margin-top:8px;">סגור</button>
+  </div>
+</div>
+
 <!-- WEALTH UPDATE MODAL -->
 <div class="modal-overlay" id="wealthModal">
   <div class="modal">
@@ -765,8 +783,8 @@ function renderStaticUI(){
   document.getElementById('lbl_catsSection').textContent=e?'Tick ✓ for a subcategory to appear in Monthly view. Set a budget to color it: green = on track, orange = 80%+ used, red = over budget':'סמן ✓ כדי שהקטגוריה תופיע בלשונית החודשית. קבע תקציב לצביעה: ירוק = בסדר, כתום = 80%+, אדום = חריגה';
   const nicoleName=(getNicole().name)||'Nicole';
   document.getElementById('lbl_nicoleSection').textContent=(e?'Shared with ':'שיתוף עם ')+nicoleName;
-  document.getElementById('lbl_nicoleRent').textContent=e?'Shared Rent (₪)':'שכר דירה משותף (₪)';
-  document.getElementById('lbl_nicoleVaad').textContent=e?'Shared Vaad Bait (₪)':'ועד בית משותף (₪)';
+  const lbl_nc=document.getElementById('lbl_nicoleCatsSection');if(lbl_nc)lbl_nc.textContent=e?'Categories to split':'קטגוריות לחלוקה';
+  const lbl_np=document.getElementById('lbl_nicolePctHeader');if(lbl_np)lbl_np.textContent=e?'Split %':'% חלוקה';
   document.getElementById('lbl_nicoleCatsSection').textContent=e?'Select categories to divide in half':'בחר קטגוריות לחלוקה בחצי';
   const toggleBtn=document.getElementById('nicoleToggleBtn');
   if(toggleBtn)toggleBtn.textContent=getNicole().visible!==false?(e?'Hide':'הסתר'):(e?'Show':'הצג');
@@ -948,12 +966,17 @@ function getData()    {return ls('expenses_data',{});}
 function saveData(d)  {lsSet('expenses_data',d);}
 function getBudgets() {return ls('budgets',{});}
 function saveBudgets(b){lsSet('budgets',b);}
-function getNicole(){return ls('nicole',{rent:7900,vaad:390,name:'Nicole',visible:true,sharedCats:['supermarket','streaming','internet','electric','arnona','water','gas']});}
+function getNicole(){
+  const n=ls('nicole',{name:'Nicole',visible:true,sharedCats:[]});
+  // Migrate old sharedCats from string[] to {id,pct}[]
+  if(n.sharedCats&&n.sharedCats.length&&typeof n.sharedCats[0]==='string'){
+    n.sharedCats=n.sharedCats.map(id=>({id,pct:50}));
+    lsSet('nicole',n);
+  }
+  return n;
+}
 function saveNicole(){
-  const n=getNicole();
-  n.rent=parseFloat(document.getElementById('nicoleRent').value)||0;
-  n.vaad=parseFloat(document.getElementById('nicoleVaad').value)||0;
-  lsSet('nicole',n);
+  lsSet('nicole',getNicole());
 }
 // ── Salary Timeline ───────────────────────────────────────
 // Storage: 'salary_timeline' = [{id, from:'YYYY-MM', gross, tax, keren, pension}]
@@ -1528,27 +1551,32 @@ function renderSavingView(){
 
   const prevKey=getPrevMonthKey(), prevLabel=keyToLabel(prevKey);
   const nicole=getNicole();
-  const nicoleRentShare=nicole.rent/2, nicoleVaadShare=nicole.vaad/2;
   const sharedCats=nicole.sharedCats||[];
-  const sharedRows=sharedCats.map(catId=>{
+  const e=lang==='en';
+
+  const sharedRows=sharedCats.map(entry=>{
+    const catId=entry.id, pct=entry.pct||50;
     const cat=getAllCats().find(c=>c.id===catId);
     const spent=getCatSpentInKey(catId,prevKey);
-    return {catId,cat,spent};
+    const share=spent*(pct/100);
+    return {catId,cat,spent,pct,share};
   });
-  const nicoleSharedTotal=sharedRows.reduce((s,r)=>s+r.spent,0);
-  const nicoleTotal=nicoleRentShare+nicoleVaadShare+nicoleSharedTotal/2;
+  const nicoleTotal=sharedRows.reduce((s,r)=>s+r.share,0);
 
   const container=document.getElementById('savingNicoleContent');
   if(!container)return;
   if(nicole.visible===false){container.innerHTML='';return;}
-  container.innerHTML=`<div class="nicole-card">
-    <h3>💙 ${nicole.name||'Nicole'}${lang==='en'?'\'s Share':' — חלק'}</h3>
-    <div class="nicole-amount">${fmt(nicoleTotal)}</div>
-    <div class="nicole-month-note">${lang==='en'?'For '+prevLabel+' (pay end of month)':'עבור '+prevLabel+' (לתשלום בסוף החודש)'}</div>
-    <div class="analysis-row"><span class="name">🏠 ${lang==='en'?'Rent (half)':'שכר דירה (חצי)'}</span><span class="val">${fmt(nicoleRentShare)}</span></div>
-    <div class="analysis-row"><span class="name">🏢 ${lang==='en'?'Vaad Bait (half)':'ועד בית (חצי)'}</span><span class="val">${fmt(nicoleVaadShare)}</span></div>
-    ${sharedRows.map(r=>`<div class="analysis-row"><span class="name">${r.cat?r.cat.icon+' '+r.cat.name:r.catId} (½) — ${prevLabel}</span><span class="val">${fmt(r.spent/2)}</span></div>`).join('')}
-  </div>`;
+  container.innerHTML='<div class="nicole-card">'
+    +'<h3>💙 '+(nicole.name||'Nicole')+(e?'\'s Share':' — חלק')+'</h3>'
+    +'<div class="nicole-amount">'+fmt(nicoleTotal)+'</div>'
+    +'<div class="nicole-month-note">'+(e?'For '+prevLabel+' (pay end of month)':'עבור '+prevLabel+' (לתשלום בסוף החודש)')+'</div>'
+    +(sharedRows.length===0?'<div style="font-size:12px;color:var(--text-muted);margin-top:8px;">'+(e?'No categories selected yet':'לא נבחרו קטגוריות עדיין')+'</div>':'')
+    +sharedRows.map(r=>{
+      const pctLabel=r.pct===50?'½':(r.pct+'%');
+      const name=r.cat?r.cat.icon+' '+r.cat.name:r.catId;
+      return '<div class="analysis-row"><span class="name">'+name+' ('+pctLabel+')</span><span class="val">'+fmt(r.share)+'</span></div>';
+    }).join('')
+    +'</div>';
 }
 
 
@@ -2157,29 +2185,62 @@ function renderSettings(){
 function renderNicoleSettings(){
   const n=getNicole();
   const e=lang==='en';
-  // Update header label with current name
-  document.getElementById('lbl_nicoleSection').textContent=(e?'Shared with ':'שיתוף עם ')+( n.name||'Nicole');
-  // Toggle button label
+  document.getElementById('lbl_nicoleSection').textContent=(e?'Shared with ':'שיתוף עם ')+(n.name||'Nicole');
   const toggleBtn=document.getElementById('nicoleToggleBtn');
   const bodyEl=document.getElementById('nicoleSectionBody');
   const isVisible=n.visible!==false;
   toggleBtn.textContent=isVisible?(e?'Hide':'הסתר'):(e?'Show':'הצג');
   bodyEl.style.display=isVisible?'':'none';
-  // Inputs
-  document.getElementById('nicoleRent').value=n.rent||'';
-  document.getElementById('nicoleVaad').value=n.vaad||'';
-  // Category picker
+
+  const lbl=document.getElementById('lbl_nicoleCatsSection');
+  if(lbl)lbl.textContent=e?'Categories to split':'קטגוריות לחלוקה';
+  const lbl2=document.getElementById('lbl_nicolePctHeader');
+  if(lbl2)lbl2.textContent=e?'Split %':'% חלוקה';
+
   const sharedCats=n.sharedCats||[];
   const allCats=getAllCats();
-  let html='';
+  const container=document.getElementById('nicoleCatsList');
+  container.innerHTML='';
+
   allCats.forEach(cat=>{
-    const on=sharedCats.includes(cat.id);
-    html+=`<div class="nicole-cat-row">
-      <span>${cat.icon} ${cat.name}</span>
-      <div class="toggle-check ${on?'on':''}" onclick="toggleNicoleCat('${cat.id}')">${on?'✓':''}</div>
-    </div>`;
+    const entry=sharedCats.find(x=>x.id===cat.id);
+    const isOn=!!entry;
+    const pct=entry?entry.pct:50;
+
+    const row=document.createElement('div');
+    row.className='nicole-cat-row';
+    row.style.cssText='display:flex;align-items:center;gap:8px;padding:8px 14px;margin:0 0 4px;background:var(--surface);border-radius:10px;border:1px solid var(--border);';
+
+    const check=document.createElement('div');
+    check.className='toggle-check'+(isOn?' on':'');
+    check.textContent=isOn?'✓':'';
+    check.style.cssText='width:22px;height:22px;border-radius:6px;border:2px solid var(--border);background:var(--surface2);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:13px;flex-shrink:0;'+(isOn?'background:var(--blue);border-color:var(--blue);':'');
+    check.onclick=()=>toggleNicoleCat(cat.id);
+
+    const label=document.createElement('span');
+    label.style.cssText='flex:1;font-size:13px;';
+    label.textContent=cat.icon+' '+cat.name;
+
+    row.appendChild(check);
+    row.appendChild(label);
+
+    if(isOn){
+      const pctWrap=document.createElement('div');
+      pctWrap.style.cssText='display:flex;align-items:center;gap:4px;flex-shrink:0;';
+      const pctInput=document.createElement('input');
+      pctInput.type='number';
+      pctInput.min=1;pctInput.max=100;pctInput.value=pct;
+      pctInput.style.cssText='width:52px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:Heebo,sans-serif;font-size:13px;padding:4px 6px;text-align:center;outline:none;';
+      pctInput.onchange=()=>setNicoleCatPct(cat.id,parseInt(pctInput.value)||50);
+      const pctLabel=document.createElement('span');
+      pctLabel.textContent='%';
+      pctLabel.style.cssText='font-size:12px;color:var(--text-muted);';
+      pctWrap.appendChild(pctInput);
+      pctWrap.appendChild(pctLabel);
+      row.appendChild(pctWrap);
+    }
+    container.appendChild(row);
   });
-  document.getElementById('nicoleCatsList').innerHTML=html;
 }
 
 function toggleNicoleVisible(){
@@ -2203,12 +2264,19 @@ function openRenameNicole(){
 function toggleNicoleCat(catId){
   const n=getNicole();
   const sharedCats=n.sharedCats||[];
-  const idx=sharedCats.indexOf(catId);
-  if(idx>=0)sharedCats.splice(idx,1); else sharedCats.push(catId);
+  const idx=sharedCats.findIndex(x=>x.id===catId);
+  if(idx>=0) sharedCats.splice(idx,1);
+  else sharedCats.push({id:catId,pct:50});
   n.sharedCats=sharedCats;
   lsSet('nicole',n);
   renderNicoleSettings();
   renderSavingView();
+}
+
+function setNicoleCatPct(catId,pct){
+  const n=getNicole();
+  const entry=(n.sharedCats||[]).find(x=>x.id===catId);
+  if(entry){entry.pct=Math.min(100,Math.max(1,pct));lsSet('nicole',n);renderSavingView();}
 }
 
 function renderCategorySettings(){
@@ -2477,6 +2545,71 @@ function showToast(msg, isError=false){
   setTimeout(()=>t.remove(),2500);
 }
 
+function openHelpModal(){
+  const e=lang==='en';
+  document.getElementById('lbl_helpTitle').textContent=e?'ℹ️ How to use Money.':'ℹ️ מדריך השימוש';
+  document.getElementById('lbl_helpTabs').textContent=e?'The Tabs':'הלשוניות';
+  document.getElementById('lbl_helpGestures').textContent=e?'Gestures & Actions':'מחוות ופעולות';
+  document.getElementById('lbl_helpBackup').textContent=e?'Backing up your data':'גיבוי הנתונים';
+  document.getElementById('lbl_helpTips').textContent=e?'Tips':'טיפים';
+  document.getElementById('btn_closeHelp').textContent=e?'Close':'סגור';
+
+  const row=(icon,title,desc)=>`<div style="display:flex;gap:10px;margin-bottom:10px;">
+    <div style="font-size:20px;flex-shrink:0;width:28px;text-align:center;">${icon}</div>
+    <div><strong style="color:var(--amber)">${title}</strong><br><span style="color:var(--text-muted)">${desc}</span></div>
+  </div>`;
+
+  document.getElementById('helpTabsContent').innerHTML=e?
+    row('📈','Analysis','Charts and insights about your spending habits. Includes monthly comparisons, trends and smart tips based on last month.')
+    +row('📅','Monthly','A breakdown of all your expenses this month by category. Tap a category to add an expense to it.')
+    +row('📜','History','A full log of all your past expenses. Filter by month to look back at any period.')
+    +row('💎','Saving','Your total savings across all accounts, plus the shared expenses calculation.')
+    +row('🗂️','Budget','Set a budget per category and choose which ones appear in the Monthly view.')
+  :
+    row('📈','ניתוח','גרפים ותובנות על הרגלי ההוצאות שלך. כולל השוואות חודשיות, מגמות וטיפים חכמים על בסיס החודש שעבר.')
+    +row('📅','מאזן חודשי','פירוט כל ההוצאות של החודש הנוכחי לפי קטגוריה. לחץ על קטגוריה להוספת הוצאה.')
+    +row('📜','היסטוריה','יומן מלא של כל ההוצאות שלך. סנן לפי חודש כדי לחזור לתקופה כלשהי.')
+    +row('💎','חסכונות','סך החסכונות שלך בכל החשבונות, בתוספת חישוב ההוצאות המשותפות.')
+    +row('🗂️','תקציב','קבע תקציב לכל קטגוריה ובחר אילו קטגוריות יופיעו בלשונית המאזן החודשי.');
+
+  document.getElementById('helpGesturesContent').innerHTML=e?
+    row('➕','Add an expense','Tap the big amber + button, or tap directly on a category in the Monthly tab.')
+    +row('👆','Long press a category','In the Monthly tab, hold a category for half a second to see a list of all individual expenses inside it for this month.')
+    +row('‹ ›','Navigate months','Use the arrows in the header to move between months. You can add old expenses to any past month.')
+    +row('⬇️','Swipe to close','Swipe down on any popup to close it.')
+    +row('🌐','Language','Tap עב / EN in the header to switch between Hebrew and English.')
+  :
+    row('➕','הוספת הוצאה','לחץ על כפתור ה-+ הגדול, או לחץ ישירות על קטגוריה בלשונית המאזן החודשי.')
+    +row('👆','לחיצה ארוכה על קטגוריה','בלשונית המאזן, לחץ לחיצה ארוכה (חצי שנייה) על קטגוריה כדי לראות את כל ההוצאות הבודדות בתוכה לחודש זה.')
+    +row('‹ ›','ניווט בין חודשים','השתמש בחצים בכותרת לעבור בין חודשים. ניתן להוסיף הוצאות ישנות לכל חודש עבר.')
+    +row('⬇️','גרור לסגירה','גרור כלפי מטה על כל חלון קופץ כדי לסגור אותו.')
+    +row('🌐','שפה','לחץ על עב / EN בכותרת כדי לעבור בין עברית לאנגלית.');
+
+  document.getElementById('helpBackupContent').innerHTML=e?
+    row('💾','When to back up','Your data is saved automatically in your browser. Back up if you plan to clear browser storage, switch phones, or just want peace of mind.')
+    +row('📤','How to export','Go to ⚙️ → Backup & Restore → Export Backup. A JSON file will be downloaded to your device.')
+    +row('📥','How to restore','Go to ⚙️ → Backup & Restore → Import File. Select your backup file and your data will be restored instantly.')
+    +row('🔔','Reminder','The app reminds you to back up every 30 days automatically.')
+  :
+    row('💾','מתי לגבות','הנתונים שלך נשמרים אוטומטית בדפדפן. גבה אם אתה מתכנן לנקות את הדפדפן, להחליף טלפון, או סתם לשקט נפשי.')
+    +row('📤','איך לייצא','עבור לـ⚙️ ← גיבוי ושחזור ← ייצא גיבוי. קובץ JSON יורד למכשיר שלך.')
+    +row('📥','איך לשחזר','עבור לـ⚙️ ← גיבוי ושחזור ← יבא קובץ. בחר את קובץ הגיבוי והנתונים ישוחזרו מיידית.')
+    +row('🔔','תזכורת','האפליקציה מזכירה לך לגבות כל 30 יום אוטומטית.');
+
+  document.getElementById('helpTipsContent').innerHTML=e?
+    row('📊','Set a salary first','Go to ⚙️ → Salary & Income to set your net salary. This unlocks the budget bar, savings rate chart and monthly insights. Each salary entry gets its own color — when you add a new salary, the previous one closes automatically on the last day of its period. Your full salary history is saved and color-coded in the Net Income chart.')
+    +row('🎯','Set budgets','In the Budget tab, set a monthly budget per category. The bar turns orange at 80% and red when exceeded.')
+    +row('💡','Check insights','The Analysis tab shows smart insights based on last month — check them regularly to stay on track.')
+    +row('🔄','Shared expenses','Set up shared expenses in ⚙️ → Shared With. Select which categories to split, and set the % for each one — 50% for half, 100% if they pay it all. The Saving tab calculates their total automatically based on last month\'s actual spending.')
+  :
+    row('📊','הגדר משכורת קודם','עבור לـ⚙️ ← משכורת והכנסות כדי להגדיר את המשכורת נטו שלך. זה מפעיל את סרגל התקציב, גרף שיעור החיסכון והתובנות החודשיות. כל רשומת משכורת מקבלת צבע משלה — כשאתה מוסיף משכורת חדשה, הקודמת נסגרת אוטומטית בסוף תקופתה. היסטוריית המשכורות שלך שמורה ומקודדת בצבעים בגרף ההכנסה נטו.')
+    +row('🎯','קבע תקציבים','בלשונית התקציב, קבע תקציב חודשי לכל קטגוריה. הסרגל יהפוך לכתום ב-80% ולאדום בחריגה.')
+    +row('💡','בדוק תובנות','לשונית הניתוח מציגה תובנות חכמות על בסיס החודש שעבר — בדוק אותן באופן קבוע כדי להישאר במסלול.')
+    +row('🔄','הוצאות משותפות','הגדר הוצאות משותפות בـ⚙️ ← שיתוף עם. בחר אילו קטגוריות לחלק וקבע % לכל אחת — 50% לחצי, 100% אם הם משלמים הכל. לשונית החסכונות מחשבת את הסכום הכולל שלהם אוטומטית לפי ההוצאות בפועל של החודש שעבר.');
+
+  document.getElementById('helpModal').classList.add('open');
+}
+
 function openSettingsModal(){
   openSettingsPanel('menu');
   // Update shared-with label in menu item
@@ -2663,7 +2796,7 @@ document.addEventListener('touchstart',e=>{
 },{passive:true});
 
 // Close modals on backdrop click
-['addModal','wealthModal','textInputModal','settingsModal','salaryEntryModal'].forEach(id=>{
+['addModal','wealthModal','textInputModal','settingsModal','salaryEntryModal','helpModal'].forEach(id=>{
   document.getElementById(id).addEventListener('click',function(e){if(e.target===this)this.classList.remove('open');});
 });
 
