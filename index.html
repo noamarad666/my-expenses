@@ -2865,8 +2865,14 @@ setTimeout(checkBackupReminder, 2000);
     if(document.querySelector('.modal-overlay.open'))return;
     const cur=TAB_ORDER.indexOf(currentTab);
     if(cur===-1)return;
-    if(dx<0&&cur<TAB_ORDER.length-1)switchTab(TAB_ORDER[cur+1]);
-    if(dx>0&&cur>0)switchTab(TAB_ORDER[cur-1]);
+    const rtl=lang==='he';
+    if(dx<0){
+      const next=rtl?cur-1:cur+1;
+      if(next>=0&&next<TAB_ORDER.length)switchTab(TAB_ORDER[next]);
+    } else if(dx>0){
+      const next=rtl?cur+1:cur-1;
+      if(next>=0&&next<TAB_ORDER.length)switchTab(TAB_ORDER[next]);
+    }
   },{passive:true});
 })();
 
