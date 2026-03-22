@@ -2059,8 +2059,11 @@ function renderBudgetUsageChart(){
   if(!cats.length){canvas.closest('.chart-card').style.display='none';return;}
   const labels=cats.map(c=>c.icon);
   const data=cats.map(c=>{
-    const spent=getCatSpentInKey(c.id,prevKey),budget=getCatBudget(c.id);
-    return Math.min(Math.round((spent/budget)*100),150);
+    // Only count positive expenses, ignore refunds/income
+    const spent=getExpensesForKey(prevKey).filter(t=>t.catId===c.id&&t.amount>0).reduce((s,t)=>s+t.amount,0);
+    const budget=getCatBudget(c.id);
+    const pct=Math.round((spent/budget)*100);
+    return Math.min(Math.max(pct,0),200); // clamp 0–200%
   });
   const bgColors=data.map(v=>v>=100?'rgba(239,68,68,0.7)':v>=80?'rgba(249,115,22,0.7)':'rgba(16,185,129,0.7)');
   if(budgetUsageChart){budgetUsageChart.destroy();budgetUsageChart=null;}
@@ -2078,7 +2081,7 @@ function renderBudgetUsageChart(){
         }}}
       },
       scales:{
-        x:{ticks:{color:CHART_DEFAULTS.color,font:CHART_DEFAULTS.font,callback:v=>v+'%'},grid:{color:CHART_DEFAULTS.grid.color},max:150},
+        x:{ticks:{color:CHART_DEFAULTS.color,font:CHART_DEFAULTS.font,callback:v=>v+'%'},grid:{color:CHART_DEFAULTS.grid.color},min:0,max:200},
         y:{ticks:{color:CHART_DEFAULTS.color,font:{size:14},padding:2},grid:{display:false}}
       }
     }
