@@ -23,14 +23,14 @@
   body{font-family:'Heebo',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;max-width:430px;margin:0 auto;padding-bottom:90px;}
 
   /* Header */
-  .header{background:var(--surface);border-bottom:1px solid var(--border);padding:16px 20px 12px;position:sticky;top:0;z-index:100;}
+  .header{background:var(--surface);border-bottom:1px solid var(--border);padding:10px 14px 10px;position:sticky;top:0;z-index:100;}
   .header-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;}
   .header h1{font-size:22px;font-weight:900;letter-spacing:-0.5px;}
   .header h1 span{color:var(--amber);}
-  .month-nav{display:flex;align-items:center;gap:12px;}
-  .month-nav button{background:var(--surface2);border:1px solid var(--border);color:var(--text);width:30px;height:30px;border-radius:8px;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;transition:background 0.15s;}
+  .month-nav{display:flex;align-items:center;gap:4px;}
+  .month-nav button{background:var(--surface2);border:1px solid var(--border);color:var(--text);width:26px;height:26px;border-radius:7px;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;transition:background 0.15s;}
   .month-nav button:hover{background:var(--border);}
-  .month-label{font-size:14px;font-weight:500;color:var(--text-muted);min-width:70px;text-align:center;}
+  .month-label{font-size:12px;font-weight:500;color:var(--text-muted);min-width:60px;text-align:center;}
 
   /* Summary */
   .summary-bar{background:var(--surface);margin:16px;border-radius:16px;padding:16px;border:1px solid var(--border);position:relative;overflow:hidden;}
@@ -298,13 +298,13 @@
 <div class="header">
   <div class="header-top">
     <h1 id="appTitle">כסף<span>.</span></h1>
-    <div style="display:flex;align-items:center;gap:8px;">
+    <div style="display:flex;align-items:center;gap:5px;">
       <div class="lang-pill" onclick="toggleLang()" id="langPill">
         <span id="langOptHE" class="active">עב</span>
         <span id="langOptEN">EN</span>
       </div>
-      <button onclick="openHelpModal()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:10px;padding:5px 10px;font-size:16px;cursor:pointer;line-height:1;font-weight:700;" id="btn_help">ⓘ</button>
-      <button onclick="openSettingsModal()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:10px;padding:5px 10px;font-size:18px;cursor:pointer;line-height:1;">⚙️</button>
+      <button onclick="openHelpModal()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:4px 8px;font-size:14px;cursor:pointer;line-height:1;font-weight:700;" id="btn_help">ⓘ</button>
+      <button onclick="openSettingsModal()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:8px;padding:4px 8px;font-size:16px;cursor:pointer;line-height:1;">⚙️</button>
       <div class="month-nav">
         <button onclick="changeMonth(-1)">‹</button>
         <div class="month-label" id="monthLabel"></div>
@@ -506,7 +506,7 @@
       <button class="settings-back" onclick="openSettingsPanel('menu')">‹ <span id="lbl_backBtn2">חזרה</span></button>
       <div id="nicoleSectionHeader" style="display:flex;align-items:center;justify-content:space-between;padding:0 4px 8px;">
         <div class="section-title" id="lbl_nicoleSection" style="padding:0;">שיתוף עם ניקול</div>
-        <div style="display:flex;align-items:center;gap:8px;">
+        <div style="display:flex;align-items:center;gap:5px;">
           <button onclick="openRenameNicole()" style="background:none;border:none;color:var(--text-muted);font-size:16px;cursor:pointer;">✏️</button>
           <button onclick="toggleNicoleVisible()" id="nicoleToggleBtn" style="background:var(--surface2);border:1px solid var(--border);color:var(--text-muted);border-radius:8px;padding:4px 10px;font-family:'Heebo',sans-serif;font-size:12px;font-weight:600;cursor:pointer;">הסתר</button>
         </div>
