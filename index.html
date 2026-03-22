@@ -384,6 +384,18 @@
     </div>
     <canvas id="netIncomeChart" height="140"></canvas>
   </div>
+  <!-- Budget usage -->
+  <div class="chart-card">
+    <h3 id="lbl_budgetUsageChart" style="color:var(--text)">🎯 שימוש בתקציב</h3>
+    <canvas id="budgetUsageChart" height="180"></canvas>
+  </div>
+  <!-- Biggest changes -->
+  <div id="biggestChangesCard" style="margin:0 8px 10px;"></div>
+  <!-- Monthly average vs current -->
+  <div class="chart-card">
+    <h3 id="lbl_avgVsCurrentChart" style="color:var(--text)">📅 ממוצע חודשי מול החודש הנוכחי</h3>
+    <canvas id="avgVsCurrentChart" height="180"></canvas>
+  </div>
 
   <div class="section-title" id="lbl_pieSection" style="padding-top:4px">השוואת חודשים</div>
   <div class="pie-controls">
@@ -775,6 +787,8 @@ function renderStaticUI(){
   document.getElementById('lbl_incomeChart').textContent=e?'⚖️ Income vs Expenses — Current Year':'⚖️ הכנסות מול הוצאות — שנה נוכחית';
   const lbSpend=document.getElementById('lbl_spendTrendChart');if(lbSpend)lbSpend.textContent=e?'📉 Spending Trend — Last 12 Months':'📉 מגמת הוצאות — 12 חודשים אחרונים';
   const lbSave=document.getElementById('lbl_savingsRateChart');if(lbSave)lbSave.textContent=e?'💰 Savings Rate — Last 12 Months':'💰 שיעור חיסכון — 12 חודשים אחרונים';
+  const lbBudget=document.getElementById('lbl_budgetUsageChart');if(lbBudget)lbBudget.textContent=e?'🎯 Budget Usage':'🎯 שימוש בתקציב';
+  const lbAvg=document.getElementById('lbl_avgVsCurrentChart');if(lbAvg)lbAvg.textContent=e?'📅 Avg vs Last Month':'📅 ממוצע מול חודש שעבר';
   document.getElementById('lbl_pieSection').textContent=e?'Month Comparison':'השוואת חודשים';
   // Settings
   const lbSalary=document.getElementById('lbl_salarySection');if(lbSalary)lbSalary.textContent=e?'Salary & Income':'משכורת והכנסות';
@@ -956,7 +970,7 @@ const CAR_CATS    = ['insurance_car','car_test','fuel','parking','public_transpo
 // ── State ───────────────────────────────────────────────
 let currentDate=new Date(); currentDate.setDate(1);
 let selectedCatId=null, currentTab='analysis', isPastExpense=false;
-let pieCharts=[null,null], wealthChart=null, incomeExpenseChart=null, customChart1=null, customChart2=null, netIncomeChart=null, spendTrendChart=null, savingsRateChart=null;
+let pieCharts=[null,null], wealthChart=null, incomeExpenseChart=null, customChart1=null, customChart2=null, netIncomeChart=null, spendTrendChart=null, savingsRateChart=null, budgetUsageChart=null, avgVsCurrentChart=null;
 let entryType='expense';
 
 // ── Storage ─────────────────────────────────────────────
@@ -1490,18 +1504,25 @@ function renderAnalysisView(){
   if(isChartVisible('cat1')||isChartVisible('cat2'))renderFoodChart();
   renderCarChart();
   if(isChartVisible('netIncome'))renderNetIncomeChart();
+  if(isChartVisible('budgetUsage'))renderBudgetUsageChart();
+  if(isChartVisible('biggestChanges'))renderBiggestChanges(); else{const c=document.getElementById('biggestChangesCard');if(c)c.innerHTML='';}
+  if(isChartVisible('avgVsCurrent'))renderAvgVsCurrentChart();
 
-  // Hide/show chart cards based on visibility
-  const map={incomeExp:'incomeExpenseChart',spendTrend:'spendTrendChart',savingsRate:'savingsRateChart',netIncome:'netIncomeChart'};
+  const map={
+    incomeExp:'incomeExpenseChart',spendTrend:'spendTrendChart',
+    savingsRate:'savingsRateChart',netIncome:'netIncomeChart',
+    budgetUsage:'budgetUsageChart',avgVsCurrent:'avgVsCurrentChart'
+  };
   Object.entries(map).forEach(([id,canvasId])=>{
     const card=document.getElementById(canvasId)?.closest('.chart-card');
     if(card)card.style.display=isChartVisible(id)?'':'none';
   });
-  // Custom category charts
   const cc1=document.getElementById('customChart1')?.closest('.chart-card');
   const cc2=document.getElementById('customChart2')?.closest('.chart-card');
   if(cc1)cc1.style.display=isChartVisible('cat1')?'':'none';
   if(cc2)cc2.style.display=isChartVisible('cat2')?'':'none';
+  const bc=document.getElementById('biggestChangesCard');
+  if(bc)bc.style.display=isChartVisible('biggestChanges')?'':'none';
 
   const container=document.getElementById('analysisContent');
   const salary=getSalary(), net=getNet();
@@ -1927,6 +1948,143 @@ function renderSavingsRateChart(){
   });
 }
 
+function renderBiggestChanges(){
+  const e=lang==='en';
+  const container=document.getElementById('biggestChangesCard');
+  if(!container)return;
+  const prevKey=getPrevMonthKey();
+  const prevLabel=keyToLabel(prevKey);
+  // Build 3-month average (months x-2, x-3, x-4)
+  const now=new Date();
+  const avgMonths=[];
+  for(let i=2;i<=4;i++){
+    const d=new Date(now.getFullYear(),now.getMonth()-i,1);
+    avgMonths.push(getMonthKey(d));
+  }
+  const hidden=getHiddenCats();
+  const cats=getAllCats().filter(c=>!hidden.includes(c.id));
+  const changes=[];
+  cats.forEach(cat=>{
+    const lastSpent=getCatSpentInKey(cat.id,prevKey);
+    const avgSpent=avgMonths.reduce((s,k)=>s+getCatSpentInKey(cat.id,k),0)/3;
+    if(avgSpent<100&&lastSpent<100)return; // skip tiny amounts
+    const diff=lastSpent-avgSpent;
+    const pct=avgSpent>0?Math.round((diff/avgSpent)*100):0;
+    if(Math.abs(pct)<15&&Math.abs(diff)<200)return; // skip small changes
+    changes.push({cat,lastSpent,avgSpent,diff,pct});
+  });
+  changes.sort((a,b)=>Math.abs(b.diff)-Math.abs(a.diff));
+  const top=changes.slice(0,3);
+  if(!top.length){container.innerHTML='';return;}
+  const title=document.createElement('div');
+  title.className='section-title';
+  title.style.cssText='padding:4px 4px 6px;';
+  title.textContent=e?'🔥 Biggest Changes vs 3-Month Avg — '+prevLabel:'🔥 שינויים גדולים מול ממוצע 3 חודשים — '+prevLabel;
+  container.innerHTML='';
+  container.appendChild(title);
+  top.forEach(({cat,lastSpent,avgSpent,diff,pct})=>{
+    const isUp=diff>0;
+    const card=document.createElement('div');
+    card.className='insight-card '+(isUp?'warning':'positive');
+    card.style.marginBottom='6px';
+    card.innerHTML='<div class="insight-icon">'+cat.icon+'</div>'
+      +'<div class="insight-text"><strong style="color:var(--text)">'+cat.name+'</strong><br>'
+      +'<span style="color:var(--text-muted)">'+fmt(lastSpent)+' '+(e?'last month':'חודש שעבר')+' · '+(e?'avg':'ממוצע')+' '+fmt(Math.round(avgSpent))+'</span><br>'
+      +'<strong style="color:'+(isUp?'var(--red)':'var(--green)')+';">'+(isUp?'▲ +':'▼ ')+fmt(Math.abs(Math.round(diff)))+' ('+Math.abs(pct)+'%)</strong></div>';
+    container.appendChild(card);
+  });
+}
+
+function renderAvgVsCurrentChart(){
+  const e=lang==='en';
+  const prevKey=getPrevMonthKey();
+  const prevLabel=keyToLabel(prevKey);
+  const lbl=document.getElementById('lbl_avgVsCurrentChart');
+  if(lbl)lbl.textContent=e?'📅 Avg vs '+prevLabel:'📅 ממוצע מול '+prevLabel;
+  const canvas=document.getElementById('avgVsCurrentChart');
+  if(!canvas)return;
+  const now=new Date();
+  const avgMonths=[];
+  for(let i=2;i<=7;i++){
+    const d=new Date(now.getFullYear(),now.getMonth()-i,1);
+    avgMonths.push(getMonthKey(d));
+  }
+  const hidden=getHiddenCats();
+  const cats=getAllCats().filter(c=>!hidden.includes(c.id));
+  // Only show cats with meaningful spending
+  const filtered=cats.filter(cat=>{
+    const last=getCatSpentInKey(cat.id,prevKey);
+    const avg=avgMonths.reduce((s,k)=>s+getCatSpentInKey(cat.id,k),0)/avgMonths.length;
+    return last>100||avg>100;
+  });
+  if(!filtered.length){canvas.closest('.chart-card').style.display='none';return;}
+  const labels=filtered.map(c=>c.icon);
+  const lastData=filtered.map(c=>getCatSpentInKey(c.id,prevKey));
+  const avgData=filtered.map(c=>Math.round(avgMonths.reduce((s,k)=>s+getCatSpentInKey(c.id,k),0)/avgMonths.length));
+  const h=Math.max(120,filtered.length*20);
+  canvas.height=h;
+  if(avgVsCurrentChart){avgVsCurrentChart.destroy();avgVsCurrentChart=null;}
+  avgVsCurrentChart=new Chart(canvas,{
+    type:'bar',
+    data:{labels,datasets:[
+      {label:e?prevLabel:prevLabel,data:lastData,backgroundColor:'rgba(139,92,246,0.7)',borderRadius:3,barThickness:8},
+      {label:e?'6-month avg':'ממוצע 6 חודשים',data:avgData,backgroundColor:'rgba(99,102,241,0.3)',borderRadius:3,barThickness:8},
+    ]},
+    options:{indexAxis:'y',responsive:true,
+      plugins:{
+        legend:{labels:{color:CHART_DEFAULTS.color,font:CHART_DEFAULTS.font,boxWidth:10}},
+        tooltip:{callbacks:{
+          title:ctx=>{const cat=filtered[ctx[0].dataIndex];return cat?cat.icon+' '+cat.name:'';},
+          label:ctx=>ctx.dataset.label+': '+fmt(ctx.parsed.x)
+        }}
+      },
+      scales:{
+        x:{ticks:{color:CHART_DEFAULTS.color,font:CHART_DEFAULTS.font,callback:v=>fmt(v)},grid:{color:CHART_DEFAULTS.grid.color}},
+        y:{ticks:{color:CHART_DEFAULTS.color,font:{size:14},padding:2},grid:{display:false}}
+      }
+    }
+  });
+}
+
+function renderBudgetUsageChart(){
+  const e=lang==='en';
+  const prevKey=getPrevMonthKey();
+  const prevLabel=keyToLabel(prevKey);
+  const lbl=document.getElementById('lbl_budgetUsageChart');
+  if(lbl)lbl.textContent=e?'🎯 Budget Usage — '+prevLabel:'🎯 שימוש בתקציב — '+prevLabel;
+  const canvas=document.getElementById('budgetUsageChart');
+  if(!canvas)return;
+  const hidden=getHiddenCats();
+  const cats=getAllCats().filter(c=>!hidden.includes(c.id)&&getCatBudget(c.id)>0);
+  if(!cats.length){canvas.closest('.chart-card').style.display='none';return;}
+  const labels=cats.map(c=>c.icon);
+  const data=cats.map(c=>{
+    const spent=getCatSpentInKey(c.id,prevKey),budget=getCatBudget(c.id);
+    return Math.min(Math.round((spent/budget)*100),150);
+  });
+  const bgColors=data.map(v=>v>=100?'rgba(239,68,68,0.7)':v>=80?'rgba(249,115,22,0.7)':'rgba(16,185,129,0.7)');
+  if(budgetUsageChart){budgetUsageChart.destroy();budgetUsageChart=null;}
+  const h=Math.max(100,cats.length*18);
+  canvas.height=h;
+  budgetUsageChart=new Chart(canvas,{
+    type:'bar',
+    data:{labels,datasets:[{data,backgroundColor:bgColors,borderRadius:3,barThickness:12}]},
+    options:{indexAxis:'y',responsive:true,
+      plugins:{
+        legend:{display:false},
+        tooltip:{callbacks:{label:ctx=>{
+          const cat=cats[ctx.dataIndex];
+          return (cat?cat.name:'')+': '+ctx.parsed.x+'%';
+        }}}
+      },
+      scales:{
+        x:{ticks:{color:CHART_DEFAULTS.color,font:CHART_DEFAULTS.font,callback:v=>v+'%'},grid:{color:CHART_DEFAULTS.grid.color},max:150},
+        y:{ticks:{color:CHART_DEFAULTS.color,font:{size:14},padding:2},grid:{display:false}}
+      }
+    }
+  });
+}
+
 function renderNetIncomeChart(){
   const e=lang==='en';
   const canvas=document.getElementById('netIncomeChart');
@@ -2054,15 +2212,27 @@ const ANALYSIS_CHARTS_DEF=[
   {id:'cat1',        icon:'📊', labelEn:'Category Chart 1',      labelHe:'גרף קטגוריה 1',      descEn:'Stacked bar for your 1st chosen category group (choose below)',           descHe:'גרף מוערם לקבוצת הקטגוריה הראשונה (בחר למטה)'},
   {id:'cat2',        icon:'📊', labelEn:'Category Chart 2',      labelHe:'גרף קטגוריה 2',      descEn:'Stacked bar for your 2nd chosen category group (choose below)',           descHe:'גרף מוערם לקבוצת הקטגוריה השנייה (בחר למטה)'},
   {id:'netIncome',   icon:'🔢', labelEn:'Net Income',            labelHe:'הכנסה נטו',          descEn:'Bar chart of net salary by month — all time or by year',   descHe:'גרף עמודות של נטו לפי חודש'},
+  {id:'budgetUsage',    icon:'🎯', labelEn:'Budget Usage',        labelHe:'שימוש בתקציב',       descEn:'Horizontal bars showing % used per budgeted category (last month)',descHe:'פסים אופקיים המציגים % שימוש לפי קטגוריה (חודש שעבר)'},
+  {id:'biggestChanges', icon:'🔥', labelEn:'Biggest Changes',     labelHe:'שינויים גדולים',      descEn:'Smart cards showing which categories changed most vs your 3-month average (last month)',descHe:'כרטיסים חכמים המציגים אילו קטגוריות השתנו הכי הרבה מול הממוצע (חודש שעבר)'},
+  {id:'avgVsCurrent',   icon:'📅', labelEn:'Avg vs Last Month',   labelHe:'ממוצע מול חודש שעבר', descEn:'Bar chart comparing last month spending per category vs your 6-month average',descHe:'גרף השוואת הוצאות חודש שעבר מול הממוצע ל-6 חודשים'},
 ];
+
+const CHARTS_DEFAULT_OFF=['biggestChanges','avgVsCurrent','budgetUsage'];
 
 function getChartVisibility(){
   const saved=ls('analysis_charts_visible',null);
-  if(saved) return saved;
-  // All visible by default
   const def={};
-  ANALYSIS_CHARTS_DEF.forEach(c=>{def[c.id]=true;});
-  return def;
+  ANALYSIS_CHARTS_DEF.forEach(c=>{
+    def[c.id]=CHARTS_DEFAULT_OFF.includes(c.id)?false:true;
+  });
+  if(!saved) return def;
+  // Merge: use saved value if it exists, but force default-off charts to false if never explicitly saved
+  const merged={...def,...saved};
+  // Any chart in CHARTS_DEFAULT_OFF that isn't explicitly in saved stays false
+  CHARTS_DEFAULT_OFF.forEach(id=>{
+    if(!(id in saved)) merged[id]=false;
+  });
+  return merged;
 }
 function saveChartVisibility(v){lsSet('analysis_charts_visible',v);}
 function isChartVisible(id){return getChartVisibility()[id]!==false;}
