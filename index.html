@@ -866,6 +866,13 @@ const WEALTH_ACCOUNTS=[
   {id:'kupat',   name:"קופת גמ\"ל",             nameEn:'Provident Fund (Gemel)',icon:'💼'},
 ];
 
+function getWealthNames(){return ls('wealth_names',{});}
+function saveWealthNames(n){lsSet('wealth_names',n);}
+function getWealthAccountName(a){
+  const custom=getWealthNames();
+  return custom[a.id]||(lang==='en'?a.nameEn:a.name);
+}
+
 const CATEGORIES_HE=[
   {id:'rent',             name:'שכר דירה',                             icon:'🏠',group:'בית',          budget:4000,shared:true},
   {id:'mortgage',         name:'משכנתא/לימודים',                       icon:'🎓',group:'בית',          budget:0},
@@ -1491,8 +1498,9 @@ function renderWealthCard(){
   const bd=document.getElementById('wealthBreakdown');
   if(total>0){
     bd.innerHTML=WEALTH_ACCOUNTS.map(a=>{
+      const aName=getWealthAccountName(a);
       const v=acc[a.id]||0;
-      return v>0?`<div class="analysis-row"><span class="name">${a.icon} ${lang==='en'?a.nameEn:a.name}</span><span class="val" style="color:var(--teal)">${fmt(v)}</span></div>`:'';
+      return v>0?`<div class="analysis-row"><span class="name">${a.icon} ${aName}</span><span class="val" style="color:var(--teal)">${fmt(v)}</span></div>`:'';
     }).join('');
   } else {
     bd.innerHTML=`<div style="color:var(--text-muted);font-size:12px;padding:8px 0">${lang==='en'?'No data entered for this month':'לא הוזנו יתרות לחודש זה'}</div>`;
@@ -2474,24 +2482,90 @@ function renderPieCharts(){
 }
 
 // ── Wealth modal ─────────────────────────────────────────
+function evalWealthExpr(str){
+  // Safely evaluate expressions like "1500+3000+45000" or "50000"
+  const cleaned=str.replace(/[^0-9+\-*.]/g,'');
+  if(!cleaned) return 0;
+  try{ const v=Function('"use strict";return ('+cleaned+')')(); return isFinite(v)&&v>=0?Math.round(v*100)/100:0; }
+  catch(e){ return parseFloat(str)||0; }
+}
+
 function openWealthModal(){
   const key=getMonthKey(currentDate);
-  document.getElementById('wealthModalTitle').textContent=`${lang==='en'?'Assets':'יתרות'} — ${keyToLabel(key)}`;
+  const e=lang==='en';
+  document.getElementById('wealthModalTitle').textContent=`${e?'Assets':'יתרות'} — ${keyToLabel(key)}`;
   const acc=getWealthForKey(key);
-  document.getElementById('wealthInputs').innerHTML=WEALTH_ACCOUNTS.map(a=>`
-    <div class="form-label">${a.icon} ${lang==='en'?a.nameEn:a.name}</div>
-    <div class="currency-row">
-      <input type="number" class="form-input" id="wealthInput_${a.id}" value="${acc[a.id]||''}" placeholder="0" inputmode="decimal" style="margin-bottom:8px">
-      <span class="currency-symbol">₪</span>
-    </div>`).join('');
+  const names=getWealthNames();
+  const container=document.getElementById('wealthInputs');
+  container.innerHTML='';
+  WEALTH_ACCOUNTS.forEach(a=>{
+    const customName=names[a.id]||(e?a.nameEn:a.name);
+    const wrap=document.createElement('div');
+    wrap.style.cssText='margin-bottom:12px;';
+
+    // Label row with rename button
+    const labelRow=document.createElement('div');
+    labelRow.style.cssText='display:flex;align-items:center;gap:6px;margin-bottom:4px;';
+    const lbl=document.createElement('div');
+    lbl.className='form-label';
+    lbl.style.cssText='flex:1;margin:0;';
+    lbl.textContent=a.icon+' '+customName;
+    const renameBtn=document.createElement('button');
+    renameBtn.textContent='✏️';
+    renameBtn.style.cssText='background:none;border:none;font-size:13px;cursor:pointer;padding:0 4px;color:var(--text-muted);';
+    renameBtn.onclick=()=>{
+      openTextInput(e?'Rename account':'שנה שם חשבון', customName, val=>{
+        if(!val.trim())return;
+        const n=getWealthNames();
+        n[a.id]=val.trim();
+        saveWealthNames(n);
+        lbl.textContent=a.icon+' '+val.trim();
+      });
+    };
+    labelRow.appendChild(lbl);
+    labelRow.appendChild(renameBtn);
+
+    // Amount input — accepts expressions
+    const inputRow=document.createElement('div');
+    inputRow.style.cssText='display:flex;align-items:center;gap:8px;';
+    const input=document.createElement('input');
+    input.type='text';
+    input.inputMode='decimal';
+    input.className='form-input';
+    input.id='wealthInput_'+a.id;
+    input.value=acc[a.id]||'';
+    input.placeholder=e?'e.g. 1500+3000':'לדוג׳ 1500+3000';
+    input.style.marginBottom='0';
+    // Live preview of expression result
+    const preview=document.createElement('span');
+    preview.style.cssText='font-size:12px;color:var(--teal);min-width:60px;text-align:left;';
+    const updatePreview=()=>{
+      const val=evalWealthExpr(input.value);
+      preview.textContent=input.value.includes('+')||input.value.includes('-')||input.value.includes('*')?'= '+fmt(val):'';
+    };
+    input.addEventListener('input',updatePreview);
+    updatePreview();
+    const sym=document.createElement('span');
+    sym.className='currency-symbol';
+    sym.textContent='₪';
+    inputRow.appendChild(input);
+    inputRow.appendChild(sym);
+    inputRow.appendChild(preview);
+
+    wrap.appendChild(labelRow);
+    wrap.appendChild(inputRow);
+    container.appendChild(wrap);
+  });
   document.getElementById('wealthModal').classList.add('open');
 }
+
 function saveWealth(){
   const key=getMonthKey(currentDate);
   const d=getWealthData();
   const acc={};
   WEALTH_ACCOUNTS.forEach(a=>{
-    const v=parseFloat(document.getElementById(`wealthInput_${a.id}`).value)||0;
+    const el=document.getElementById('wealthInput_'+a.id);
+    const v=evalWealthExpr(el?el.value:'');
     if(v>0)acc[a.id]=v;
   });
   d[key]=acc; saveWealthData(d);
@@ -2778,6 +2852,7 @@ function getAllAppData(){
     salaryTimeline: ls('salary_timeline',[]),
     nicole:      getNicole(),
     wealth:      ls('wealth_data',{}),
+    wealthNames: getWealthNames(),
     hidden:      getHiddenCats(),
     custom:      getCustomCats(),
     lang:        lang,
@@ -2827,6 +2902,7 @@ function importData(event){
       lsSet('salary_timeline',data.salaryTimeline||[]);
       lsSet('nicole',data.nicole||{});
       lsSet('wealth_data',data.wealth||{});
+      if(data.wealthNames)lsSet('wealth_names',data.wealthNames);
       saveHiddenCats(data.hidden||[]);
       saveCustomCats(data.custom||{cats:[],groups:[]});
       if(data.lang){lang=data.lang;localStorage.setItem('app_lang',lang);}
