@@ -577,7 +577,7 @@
       <div style="background:rgba(139,92,246,0.08);border:1px solid rgba(139,92,246,0.2);border-radius:14px;padding:16px;margin-bottom:10px;">
         <div style="font-size:13px;font-weight:700;margin-bottom:4px;color:var(--purple);">🔄 Test Recurring Charges</div>
         <div style="font-size:12px;color:var(--text-muted);margin-bottom:12px;">Simulate opening the app at the start of a new month</div>
-        <button onclick="localStorage.removeItem('last_opened_month');document.getElementById('settingsModal').classList.remove('open');setTimeout(checkRecurringCharges,300);" style="background:rgba(139,92,246,0.15);border:1px solid var(--purple);color:var(--purple);border-radius:10px;padding:10px;width:100%;font-family:'Heebo',sans-serif;font-size:14px;font-weight:700;cursor:pointer;">הפעל בדיקה</button>
+        <button onclick="localStorage.removeItem('last_opened_month');document.getElementById('settingsModal').classList.remove('open');setTimeout(()=>{const r=detectRecurring();if(r.length)showRecurringModal(r);else showToast(lang==='en'?'No recurring charges detected yet':'לא זוהו תשלומים חוזרים עדיין',true);},300);" style="background:rgba(139,92,246,0.15);border:1px solid var(--purple);color:var(--purple);border-radius:10px;padding:10px;width:100%;font-family:'Heebo',sans-serif;font-size:14px;font-weight:700;cursor:pointer;">הפעל בדיקה</button>
       </div>
 
       <div style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);border-radius:14px;padding:16px;">
@@ -3374,6 +3374,13 @@ function detectRecurring(){
     // Need at least 2 consecutive months (monthIdx 0&1 = last2months, 1&2 = months before)
     const hasConsecutive=monthsPresent.some((m,i)=>i>0&&m===monthsPresent[i-1]+1);
     if(!hasConsecutive) return;
+    // Check 5% variance — totals across consecutive months must be within 5% of each other
+    const monthTotals=monthsPresent.map(m=>(byMonth[m]||[]).reduce((s,v)=>s+v,0));
+    const maxAmt=Math.max(...monthTotals);
+    const minAmt=Math.min(...monthTotals);
+    if(maxAmt===0) return;
+    const variance=(maxAmt-minAmt)/maxAmt;
+    if(variance>0.05) return; // more than 5% variance — not truly recurring
     // Use last month's (monthIdx=0) amounts as the suggested recurring
     const lastMonthAmounts=byMonth[0]||byMonth[1]||[];
     if(!lastMonthAmounts.length) return;
