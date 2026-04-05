@@ -574,6 +574,12 @@
         </label>
       </div>
 
+      <div style="background:rgba(139,92,246,0.08);border:1px solid rgba(139,92,246,0.2);border-radius:14px;padding:16px;margin-bottom:10px;">
+        <div style="font-size:13px;font-weight:700;margin-bottom:4px;color:var(--purple);">🔄 Test Recurring Charges</div>
+        <div style="font-size:12px;color:var(--text-muted);margin-bottom:12px;">Simulate opening the app at the start of a new month</div>
+        <button onclick="localStorage.removeItem('last_opened_month');document.getElementById('settingsModal').classList.remove('open');setTimeout(checkRecurringCharges,300);" style="background:rgba(139,92,246,0.15);border:1px solid var(--purple);color:var(--purple);border-radius:10px;padding:10px;width:100%;font-family:'Heebo',sans-serif;font-size:14px;font-weight:700;cursor:pointer;">הפעל בדיקה</button>
+      </div>
+
       <div style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);border-radius:14px;padding:16px;">
         <div style="font-size:13px;font-weight:700;margin-bottom:4px;color:var(--red);" id="lbl_resetTitle">🗑️ איפוס נתונים</div>
         <div style="font-size:12px;color:var(--text-muted);margin-bottom:12px;" id="lbl_resetSub">מחק את כל הנתונים לחלוטין</div>
@@ -716,6 +722,18 @@
     <input type="text" class="form-input" id="textInputField" style="margin-bottom:12px;">
     <button class="btn-primary" id="btn_textInputSave" onclick="confirmTextInput()">שמור</button>
     <button class="btn-secondary" id="btn_textInputCancel" onclick="document.getElementById('textInputModal').classList.remove('open')">ביטול</button>
+  </div>
+</div>
+
+<!-- RECURRING CHARGES MODAL -->
+<div class="modal-overlay" id="recurringModal">
+  <div class="modal" style="max-height:85vh;overflow-y:auto;padding-bottom:24px;">
+    <div class="modal-handle"></div>
+    <h2 id="lbl_recurringTitle" style="margin-bottom:4px;">🔄 תשלומים חוזרים</h2>
+    <p id="lbl_recurringSub" style="font-size:13px;color:var(--text-muted);margin-bottom:14px;">אלו הוצאות שזוהו כחוזרות — בחר אילו להוסיף גם החודש</p>
+    <div id="recurringList" style="margin-bottom:14px;"></div>
+    <button class="btn-primary" id="btn_recurringConfirm" onclick="confirmRecurring()">הוסף לחודש הנוכחי ✓</button>
+    <button class="btn-secondary" id="btn_recurringSkip" onclick="skipRecurring()" style="margin-top:8px;">דלג על החודש הזה</button>
   </div>
 </div>
 
@@ -3239,7 +3257,7 @@ document.addEventListener('touchstart',e=>{
 },{passive:true});
 
 // Close modals on backdrop click
-['addModal','wealthModal','textInputModal','settingsModal','salaryEntryModal','helpModal'].forEach(id=>{
+['addModal','wealthModal','textInputModal','settingsModal','salaryEntryModal','helpModal','recurringModal'].forEach(id=>{
   document.getElementById(id).addEventListener('click',function(e){if(e.target===this)this.classList.remove('open');});
 });
 
@@ -3293,6 +3311,9 @@ render();
 // Check backup reminder after short delay
 setTimeout(checkBackupReminder, 2000);
 
+// Check recurring charges (new month detection)
+setTimeout(checkRecurringCharges, 1000);
+
 // Swipe left/right to switch tabs
 (function(){
   const TAB_ORDER=['analysis','budget','history','saving'];
@@ -3318,6 +3339,160 @@ setTimeout(checkBackupReminder, 2000);
     }
   },{passive:true});
 })();
+
+// ── Recurring Charges ────────────────────────────────────
+function getLastOpenedMonth(){return localStorage.getItem('last_opened_month')||'';}
+function setLastOpenedMonth(k){localStorage.setItem('last_opened_month',k);}
+
+function detectRecurring(){
+  // Look at last 3 months, find cats that had expenses in at least 2 consecutive months
+  const now=new Date();
+  const months=[];
+  for(let i=1;i<=3;i++){
+    const d=new Date(now.getFullYear(),now.getMonth()-i,1);
+    months.push(getMonthKey(d));
+  }
+  const catAmounts={}; // catId -> [amounts per month]
+  months.forEach((key,i)=>{
+    const txs=getExpensesForKey(key).filter(t=>t.amount>0);
+    txs.forEach(tx=>{
+      if(!catAmounts[tx.catId])catAmounts[tx.catId]=[];
+      // store {monthIdx, amount}
+      catAmounts[tx.catId].push({monthIdx:i,amount:tx.amount,note:tx.note||''});
+    });
+  });
+
+  const recurring=[];
+  Object.entries(catAmounts).forEach(([catId,entries])=>{
+    // Group by month
+    const byMonth={};
+    entries.forEach(e=>{
+      if(!byMonth[e.monthIdx])byMonth[e.monthIdx]=[];
+      byMonth[e.monthIdx].push(e.amount);
+    });
+    const monthsPresent=Object.keys(byMonth).map(Number).sort();
+    // Need at least 2 consecutive months (monthIdx 0&1 = last2months, 1&2 = months before)
+    const hasConsecutive=monthsPresent.some((m,i)=>i>0&&m===monthsPresent[i-1]+1);
+    if(!hasConsecutive) return;
+    // Use last month's (monthIdx=0) amounts as the suggested recurring
+    const lastMonthAmounts=byMonth[0]||byMonth[1]||[];
+    if(!lastMonthAmounts.length) return;
+    // Aggregate: sum all entries in last month for this cat
+    const totalAmt=lastMonthAmounts.reduce((s,v)=>s+v,0);
+    const cat=getAllCats().find(c=>c.id===catId);
+    if(!cat)return;
+    recurring.push({catId,cat,amount:Math.round(totalAmt*100)/100});
+  });
+
+  // Sort by amount desc
+  return recurring.sort((a,b)=>b.amount-a.amount);
+}
+
+function checkRecurringCharges(){
+  const currentKey=getMonthKey(new Date());
+  const lastKey=getLastOpenedMonth();
+  if(lastKey===currentKey) return; // already shown this month
+  setLastOpenedMonth(currentKey);
+
+  // Don't show if current month already has data (user already entered things)
+  const currentData=getExpensesForKey(currentKey).filter(t=>t.amount>0);
+  if(currentData.length>0) return;
+
+  const recurring=detectRecurring();
+  if(!recurring.length) return;
+
+  showRecurringModal(recurring);
+}
+
+let _recurringItems=[];
+
+function showRecurringModal(items){
+  const e=lang==='en';
+  _recurringItems=items;
+  document.getElementById('lbl_recurringTitle').textContent=e?'🔄 Recurring Charges':'🔄 תשלומים חוזרים';
+  document.getElementById('lbl_recurringSub').textContent=e
+    ?'These charges were detected as recurring — select which to add this month:'
+    :'אלו הוצאות שזוהו כחוזרות — בחר אילו להוסיף גם החודש:';
+  document.getElementById('btn_recurringConfirm').textContent=e?'Add selected ✓':'הוסף נבחרים ✓';
+  document.getElementById('btn_recurringSkip').textContent=e?'Skip for this month':'דלג על החודש הזה';
+
+  const list=document.getElementById('recurringList');
+  list.innerHTML='';
+  items.forEach((item,idx)=>{
+    const row=document.createElement('div');
+    row.style.cssText='display:flex;align-items:center;gap:10px;padding:10px 12px;margin-bottom:6px;background:var(--surface);border:1px solid var(--border);border-radius:12px;';
+
+    // Toggle
+    const toggle=document.createElement('div');
+    toggle.dataset.on='1';
+    toggle.style.cssText='width:22px;height:22px;border-radius:6px;background:var(--blue);border:2px solid var(--blue);display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:13px;flex-shrink:0;color:#fff;font-weight:700;';
+    toggle.textContent='✓';
+    toggle.onclick=()=>{
+      const isOn=toggle.dataset.on==='1';
+      toggle.dataset.on=isOn?'0':'1';
+      toggle.textContent=isOn?'':' ✓';
+      toggle.style.background=isOn?'var(--surface2)':'var(--blue)';
+      toggle.style.borderColor=isOn?'var(--border)':'var(--blue)';
+      toggle.style.color=isOn?'transparent':'#fff';
+      amtInput.style.opacity=isOn?'0.4':'1';
+    };
+
+    // Cat info
+    const info=document.createElement('div');
+    info.style.cssText='flex:1;';
+    info.innerHTML='<div style="font-size:13px;font-weight:600;">'+item.cat.icon+' '+item.cat.name+'</div>';
+
+    // Amount input
+    const amtInput=document.createElement('input');
+    amtInput.type='number';
+    amtInput.value=item.amount;
+    amtInput.min='0';
+    amtInput.style.cssText='width:80px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:Heebo,sans-serif;font-size:13px;padding:4px 8px;text-align:center;outline:none;';
+    amtInput.dataset.idx=idx;
+
+    const sym=document.createElement('span');
+    sym.textContent='₪';
+    sym.style.cssText='font-size:12px;color:var(--text-muted);flex-shrink:0;';
+
+    row.appendChild(toggle);
+    row.appendChild(info);
+    row.appendChild(amtInput);
+    row.appendChild(sym);
+    list.appendChild(row);
+  });
+
+  document.getElementById('recurringModal').classList.add('open');
+}
+
+function confirmRecurring(){
+  const key=getMonthKey(new Date());
+  const data=getData();
+  if(!data[key])data[key]=[];
+  const list=document.getElementById('recurringList');
+  const rows=[...list.children];
+  rows.forEach((row,idx)=>{
+    const toggle=row.querySelector('[data-on]');
+    if(!toggle||toggle.dataset.on!=='1')return;
+    const amtInput=row.querySelector('input[type="number"]');
+    const amount=parseFloat(amtInput?amtInput.value:0)||_recurringItems[idx].amount;
+    if(amount<=0)return;
+    data[key].push({
+      id:Date.now().toString()+'_'+idx,
+      catId:_recurringItems[idx].catId,
+      amount:Math.round(amount*100)/100,
+      note:'',
+      date:new Date().toISOString(),
+    });
+  });
+  saveData(data);
+  document.getElementById('recurringModal').classList.remove('open');
+  render();
+  showToast(lang==='en'?'Recurring charges added ✓':'תשלומים חוזרים נוספו ✓');
+}
+
+function skipRecurring(){
+  document.getElementById('recurringModal').classList.remove('open');
+}
 
 // No service worker
 </script>
