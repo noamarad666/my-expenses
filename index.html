@@ -669,15 +669,15 @@
     </div>
     <div class="settings-row">
       <label id="lbl_seTax">מיסים / ניכויים (₪)</label>
-      <input type="text" inputmode="decimal" id="seTax" placeholder="0 or 100+200" oninput="updateSENet()">
+      <input type="text" inputmode="decimal" id="seTax" placeholder="sum" oninput="updateSENet()">
     </div>
     <div class="settings-row">
       <label id="lbl_seKeren">קרן השתלמות (₪)</label>
-      <input type="text" inputmode="decimal" id="seKeren" placeholder="0 or 100+200" oninput="updateSENet()">
+      <input type="number" id="seKeren" placeholder="0" oninput="updateSENet()">
     </div>
     <div class="settings-row">
       <label id="lbl_sePension">פנסיה (₪)</label>
-      <input type="text" inputmode="decimal" id="sePension" placeholder="0 or 100+200" oninput="updateSENet()">
+      <input type="number" id="sePension" placeholder="0" oninput="updateSENet()">
     </div>
     <div class="settings-row" style="background:rgba(139,92,246,0.08);border-color:rgba(139,92,246,0.3)">
       <label style="color:var(--purple);font-weight:600" id="lbl_seNet">נטו</label>
