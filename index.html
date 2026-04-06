@@ -503,6 +503,9 @@
       <button class="settings-back" onclick="openSettingsPanel('menu')">‹ <span id="lbl_backBtn6">חזרה</span></button>
       <div class="section-title" id="lbl_catsSection">קטגוריות — ✓ מוצג | תקציב | מחיקה</div>
       <div id="settingsList"></div>
+      <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);">
+        <button id="btn_recurringFromCats" onclick="document.getElementById('settingsModal').classList.remove('open');setTimeout(()=>{const r=detectRecurring();if(r.length)showRecurringModal(r);else showToast(lang==='en'?'No recurring charges detected yet':'לא זוהו תשלומים חוזרים עדיין',true);},300);" style="background:rgba(139,92,246,0.15);border:1px solid var(--purple);color:var(--purple);border-radius:10px;padding:10px;width:100%;font-family:'Heebo',sans-serif;font-size:14px;font-weight:700;cursor:pointer;">🔄 Recurring Charges</button>
+      </div>
     </div>
 
     <!-- SALARY panel -->
@@ -575,9 +578,9 @@
       </div>
 
       <div style="background:rgba(139,92,246,0.08);border:1px solid rgba(139,92,246,0.2);border-radius:14px;padding:16px;margin-bottom:10px;">
-        <div style="font-size:13px;font-weight:700;margin-bottom:4px;color:var(--purple);">🔄 Test Recurring Charges</div>
-        <div style="font-size:12px;color:var(--text-muted);margin-bottom:12px;">Simulate opening the app at the start of a new month</div>
-        <button onclick="localStorage.removeItem('last_opened_month');document.getElementById('settingsModal').classList.remove('open');setTimeout(()=>{const r=detectRecurring();if(r.length)showRecurringModal(r);else showToast(lang==='en'?'No recurring charges detected yet':'לא זוהו תשלומים חוזרים עדיין',true);},300);" style="background:rgba(139,92,246,0.15);border:1px solid var(--purple);color:var(--purple);border-radius:10px;padding:10px;width:100%;font-family:'Heebo',sans-serif;font-size:14px;font-weight:700;cursor:pointer;">הפעל בדיקה</button>
+        <div style="font-size:13px;font-weight:700;margin-bottom:4px;color:var(--purple);" id="lbl_testRecurringTitle">🔄 Test Recurring Charges</div>
+        <div style="font-size:12px;color:var(--text-muted);margin-bottom:12px;" id="lbl_testRecurringSub">Simulate opening the app at the start of a new month</div>
+        <button id="btn_testRecurring" onclick="localStorage.removeItem('last_opened_month');document.getElementById('settingsModal').classList.remove('open');setTimeout(()=>{const r=detectRecurring();if(r.length)showRecurringModal(r);else showToast(lang==='en'?'No recurring charges detected yet':'לא זוהו תשלומים חוזרים עדיין',true);},300);" style="background:rgba(139,92,246,0.15);border:1px solid var(--purple);color:var(--purple);border-radius:10px;padding:10px;width:100%;font-family:'Heebo',sans-serif;font-size:14px;font-weight:700;cursor:pointer;" id="btn_testRecurring2">🔄 Recurring Charges</button>
       </div>
 
       <div style="background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);border-radius:14px;padding:16px;">
@@ -792,6 +795,10 @@ function renderStaticUI(){
   const smiSalary=document.getElementById('smi_salary');if(smiSalary)smiSalary.textContent=e?'Salary & Income':'משכורת והכנסות';
   const smiSalarySub=document.getElementById('smi_salary_sub');if(smiSalarySub)smiSalarySub.textContent=e?'Gross, taxes, deductions':'ברוטו, מיסים, ניכויים';
   const smiShared=document.getElementById('smi_shared');if(smiShared)smiShared.textContent=(e?'Shared with ':'שיתוף עם ')+((getNicole().name)||'Nicole');
+  const lbTestRec=document.getElementById('lbl_testRecurringTitle');if(lbTestRec)lbTestRec.textContent=e?'🔄 Test Recurring Charges':'🔄 בדיקת תשלומים חוזרים';
+  const lbTestRecSub=document.getElementById('lbl_testRecurringSub');if(lbTestRecSub)lbTestRecSub.textContent=e?'Simulate opening the app at the start of a new month':'הדמה של פתיחת האפליקציה בתחילת חודש חדש';
+  const btnTestRec=document.getElementById('btn_testRecurring2');if(btnTestRec)btnTestRec.textContent=e?'🔄 Recurring Charges':'🔄 תשלומים חוזרים';
+  const btnRecCats=document.getElementById('btn_recurringFromCats');if(btnRecCats)btnRecCats.textContent=e?'🔄 Recurring Charges':'🔄 תשלומים חוזרים';
   const lbNicoleHint=document.getElementById('lbl_nicoleHint');if(lbNicoleHint)lbNicoleHint.textContent=e?'Tap ✏️ to change the name of the person or group. Tap Hide to remove this section from the Saving tab entirely.':'לחץ ✏️ לשינוי שם האדם או הקבוצה. לחץ הסתר כדי להסיר את החלק הזה מלשונית החסכונות לחלוטין.';
   const smiSharedSub=document.getElementById('smi_shared_sub');if(smiSharedSub)smiSharedSub.textContent=e?'Choose categories to split in half with a shared person':'בחר קטגוריות לחלוקה שווה עם אדם נוסף';
   const smiTheme=document.getElementById('smi_theme');if(smiTheme)smiTheme.textContent=e?'Color Theme':'ערכת צבעים';
@@ -3018,11 +3025,13 @@ function openHelpModal(){
     +row('🎯','Set budgets','In the Budget tab, set a monthly budget per category. The bar turns orange at 80% and red when exceeded.')
     +row('💡','Check insights','The Analysis tab shows smart insights based on last month — check them regularly to stay on track.')
     +row('🔄','Shared expenses','Set up shared expenses in ⚙️ → Shared With. Select which categories to split, and set the % for each one — 50% for half, 100% if they pay it all. The Saving tab calculates their total automatically based on last month\'s actual spending.')
+    +row('🔁','Recurring charges','At the start of each month, the app will automatically ask you which recurring charges to duplicate. If you missed it or want to trigger it manually, go to ⚙️ → Categories & Budget and tap "Recurring Charges". Note: if you\'ve already entered charges manually this month, they may appear twice — so clear the month\'s data first if needed.')
   :
     row('📊','הגדר משכורת קודם','עבור לـ⚙️ ← משכורת והכנסות כדי להגדיר את המשכורת נטו שלך. זה מפעיל את סרגל התקציב, גרף שיעור החיסכון והתובנות החודשיות. כל רשומת משכורת מקבלת צבע משלה — כשאתה מוסיף משכורת חדשה, הקודמת נסגרת אוטומטית בסוף תקופתה. היסטוריית המשכורות שלך שמורה ומקודדת בצבעים בגרף ההכנסה נטו.')
     +row('🎯','קבע תקציבים','בלשונית התקציב, קבע תקציב חודשי לכל קטגוריה. הסרגל יהפוך לכתום ב-80% ולאדום בחריגה.')
     +row('💡','בדוק תובנות','לשונית הניתוח מציגה תובנות חכמות על בסיס החודש שעבר — בדוק אותן באופן קבוע כדי להישאר במסלול.')
-    +row('🔄','הוצאות משותפות','הגדר הוצאות משותפות בـ⚙️ ← שיתוף עם. בחר אילו קטגוריות לחלק וקבע % לכל אחת — 50% לחצי, 100% אם הם משלמים הכל. לשונית החסכונות מחשבת את הסכום הכולל שלהם אוטומטית לפי ההוצאות בפועל של החודש שעבר.');
+    +row('🔄','הוצאות משותפות','הגדר הוצאות משותפות בـ⚙️ ← שיתוף עם. בחר אילו קטגוריות לחלק וקבע % לכל אחת — 50% לחצי, 100% אם הם משלמים הכל. לשונית החסכונות מחשבת את הסכום הכולל שלהם אוטומטית לפי ההוצאות בפועל של החודש שעבר.')
+    +row('🔁','תשלומים חוזרים','בתחילת כל חודש האפליקציה תשאל אותך אילו תשלומים חוזרים לשכפל. אם פספסת את החלון או רוצה להפעיל ידנית, עבור לـ⚙️ ← קטגוריות ותקציב ולחץ "תשלומים חוזרים". שים לב: אם כבר הזנת הוצאות ידנית החודש, הן עלולות להופיע פעמיים — לכן מומלץ לנקות את נתוני החודש קודם.');
 
   document.getElementById('helpModal').classList.add('open');
 }
