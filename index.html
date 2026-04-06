@@ -660,20 +660,24 @@
       <input type="number" id="seGross" placeholder="0" oninput="updateSENet()">
     </div>
     <div class="settings-row">
+      <label id="lbl_seTravel">החזר נסיעות (₪)</label>
+      <input type="number" id="seTravel" placeholder="0" oninput="updateSENet()">
+    </div>
+    <div class="settings-row">
       <label id="lbl_seExtra">תוספת חד"פ (נסיעות, בונוס...) (₪)</label>
       <input type="number" id="seExtra" placeholder="0" oninput="updateSENet()">
     </div>
     <div class="settings-row">
       <label id="lbl_seTax">מיסים / ניכויים (₪)</label>
-      <input type="number" id="seTax" placeholder="0" oninput="updateSENet()">
+      <input type="text" inputmode="decimal" id="seTax" placeholder="0 or 1330+393" oninput="updateSENet()">
     </div>
     <div class="settings-row">
       <label id="lbl_seKeren">קרן השתלמות (₪)</label>
-      <input type="number" id="seKeren" placeholder="0" oninput="updateSENet()">
+      <input type="text" inputmode="decimal" id="seKeren" placeholder="0 or 1500+200" oninput="updateSENet()">
     </div>
     <div class="settings-row">
       <label id="lbl_sePension">פנסיה (₪)</label>
-      <input type="number" id="sePension" placeholder="0" oninput="updateSENet()">
+      <input type="text" inputmode="decimal" id="sePension" placeholder="0 or 500+100" oninput="updateSENet()">
     </div>
     <div class="settings-row" style="background:rgba(139,92,246,0.08);border-color:rgba(139,92,246,0.3)">
       <label style="color:var(--purple);font-weight:600" id="lbl_seNet">נטו</label>
@@ -1063,7 +1067,7 @@ function getSalary(){
   }
   return match;
 }
-function getNet(){const s=getSalary();return s.gross+(s.extra||0)-s.tax-(s.keren||0)-(s.pension||0);}
+function getNet(){const s=getSalary();return s.gross+(s.travel||0)+(s.extra||0)-s.tax-(s.keren||0)-(s.pension||0);}
 function updateNetDisplay(){/* no-op — netDisplay removed */}
 
 // Migrate old salary format on first load
@@ -1096,7 +1100,7 @@ function renderSalaryTimeline(){
   for(let i = tl.length-1; i >= 0; i--){
     const entry = tl[i];
     const isCurrent = (i === tl.length-1);
-    const net = entry.gross + (entry.extra||0) - entry.tax - (entry.keren||0) - (entry.pension||0);
+    const net = entry.gross + (entry.travel||0) + (entry.extra||0) - entry.tax - (entry.keren||0) - (entry.pension||0);
 
     // start label
     const startLabel = monthKeyToLabel(entry.from);
@@ -1153,6 +1157,7 @@ function renderSalaryTimeline(){
     let detail = (e?'Gross':'ברוטו') + ': ' + fmt(entry.gross);
     if(entry.extra) detail += ' · ' + (e?'Extra':'תוספת') + ': ' + fmt(entry.extra);
     detail += ' · ' + (e?'Tax':'מיסים') + ': ' + fmt(entry.tax);
+    if(entry.travel) detail += ' · ' + (e?'Travel':'נסיעות') + ': ' + fmt(entry.travel);
     if(entry.keren) detail += ' · ' + (e?'Ed.Fund':'קה"ש') + ': ' + fmt(entry.keren);
     if(entry.pension) detail += ' · ' + (e?'Pension':'פנסיה') + ': ' + fmt(entry.pension);
     detailRow.textContent = detail;
@@ -1232,6 +1237,7 @@ function openSalaryEntryModal(id){
   const entry=id?tl.find(x=>x.id===id):null;
   document.getElementById('lbl_salaryEntryTitle').textContent=id?(e?'Edit Salary':'ערוך משכורת'):(e?'Add Salary':'הוסף משכורת');
   document.getElementById('lbl_seFrom').textContent=e?'Start date':'תאריך התחלה';
+  document.getElementById('lbl_seTravel').textContent=e?'Travel Reimbursement (₪)':'החזר נסיעות (₪)';
   document.getElementById('lbl_seGross').textContent=e?'Monthly Gross (₪)':'ברוטו חודשי (₪)';
   document.getElementById('lbl_seExtra').textContent=e?'Extra payment (trips, bonus...) (₪)':'תוספת חד"פ (נסיעות, בונוס...) (₪)';
   document.getElementById('lbl_seTax').textContent=e?'Taxes / Deductions (₪)':'מיסים / ניכויים (₪)';
@@ -1245,6 +1251,7 @@ function openSalaryEntryModal(id){
   document.getElementById('seNote').placeholder=e?'e.g. Google, Freelance...':'לדוג׳ גוגל, פרילנס...';
   document.getElementById('seNote').value=entry?(entry.note||''):'';
   document.getElementById('seGross').value=entry?entry.gross:'';
+  document.getElementById('seTravel').value=entry?(entry.travel||''):'';
   document.getElementById('seExtra').value=entry?(entry.extra||''):'';
   document.getElementById('seTax').value=entry?entry.tax:'';
   document.getElementById('seKeren').value=entry?(entry.keren||''):'';
@@ -1254,11 +1261,12 @@ function openSalaryEntryModal(id){
 }
 function updateSENet(){
   const g=parseFloat(document.getElementById('seGross').value)||0;
+  const tr=parseFloat(document.getElementById('seTravel').value)||0;
   const x=parseFloat(document.getElementById('seExtra').value)||0;
-  const t=parseFloat(document.getElementById('seTax').value)||0;
-  const k=parseFloat(document.getElementById('seKeren').value)||0;
-  const p=parseFloat(document.getElementById('sePension').value)||0;
-  document.getElementById('seNetDisplay').textContent=fmt(g+x-t-k-p);
+  const t=evalWealthExpr(document.getElementById('seTax').value);
+  const k=evalWealthExpr(document.getElementById('seKeren').value);
+  const p=evalWealthExpr(document.getElementById('sePension').value);
+  document.getElementById('seNetDisplay').textContent=fmt(g+tr+x-t-k-p);
 }
 function saveSalaryEntry(){
   const tl=getSalaryTimeline();
@@ -1272,10 +1280,11 @@ function saveSalaryEntry(){
     note: document.getElementById('seNote').value.trim(),
     color: nextColor,
     gross: parseFloat(document.getElementById('seGross').value)||0,
+    travel: parseFloat(document.getElementById('seTravel').value)||0,
     extra: parseFloat(document.getElementById('seExtra').value)||0,
-    tax:   parseFloat(document.getElementById('seTax').value)||0,
-    keren: parseFloat(document.getElementById('seKeren').value)||0,
-    pension:parseFloat(document.getElementById('sePension').value)||0,
+    tax:   evalWealthExpr(document.getElementById('seTax').value),
+    keren: evalWealthExpr(document.getElementById('seKeren').value),
+    pension:evalWealthExpr(document.getElementById('sePension').value),
   };
   if(_editingSalaryId){
     const idx=tl.findIndex(x=>x.id===_editingSalaryId);
@@ -1607,6 +1616,7 @@ function renderIncomeSummaryCard(){
     <div class="salary-breakdown">
       <div class="analysis-row"><span class="name">${lang==='en'?'Gross':'ברוטו'}</span><span class="val">${fmt(salary.gross)}</span></div>
       <div class="analysis-row"><span class="name">${lang==='en'?'Taxes':'מיסים'}</span><span class="val" style="color:var(--red)">-${fmt(salary.tax)}</span></div>
+      ${salary.travel>0?`<div class="analysis-row"><span class="name">🚌 ${lang==='en'?'Travel reimbursement':'החזר נסיעות'}</span><span class="val" style="color:var(--green)">+${fmt(salary.travel)}</span></div>`:''}
       ${salary.keren>0?`<div class="analysis-row"><span class="name">🌿 ${lang==='en'?'Education Fund (mine)':'קרן השתלמות (שלי)'}</span><span class="val" style="color:var(--teal)">-${fmt(salary.keren)}</span></div>`:''}
       ${salary.pension>0?`<div class="analysis-row"><span class="name">👴 ${lang==='en'?'Pension (mine)':'פנסיה (שלי)'}</span><span class="val" style="color:var(--teal)">-${fmt(salary.pension)}</span></div>`:''}
       <div class="analysis-row"><span class="name">${lang==='en'?'This month expenses':'הוצאות החודש'}</span><span class="val" style="color:var(--red)">-${fmt(total)}</span></div>
