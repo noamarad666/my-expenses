@@ -1038,11 +1038,19 @@ const SALARY_COLORS=['rgba(139,92,246,0.8)','rgba(245,158,11,0.8)','rgba(59,130,
 
 function getSalaryTimeline(){
   const tl=ls('salary_timeline',[]);
-  // Auto-assign colors to any entry missing one
+  // Assign colors by workplace name (note) — same name = same color
+  const nameColorMap={};
+  let colorIdx=0;
   let changed=false;
-  tl.forEach((entry,i)=>{
-    if(!entry.color){
-      entry.color=SALARY_COLORS[i%SALARY_COLORS.length];
+  tl.forEach(entry=>{
+    const key=(entry.note||'').trim().toLowerCase()||'__default__';
+    if(!nameColorMap[key]){
+      nameColorMap[key]=SALARY_COLORS[colorIdx%SALARY_COLORS.length];
+      colorIdx++;
+    }
+    const assignedColor=nameColorMap[key];
+    if(entry.color!==assignedColor){
+      entry.color=assignedColor;
       changed=true;
     }
   });
@@ -1270,10 +1278,16 @@ function updateSENet(){
 }
 function saveSalaryEntry(){
   const tl=getSalaryTimeline();
-  // Keep existing color if editing, assign next color if new
-  const existingEntry=_editingSalaryId?tl.find(x=>x.id===_editingSalaryId):null;
-  const usedColors=tl.filter(x=>x.id!==_editingSalaryId).map(x=>x.color).filter(Boolean);
-  const nextColor=existingEntry?.color||SALARY_COLORS.find(c=>!usedColors.includes(c))||SALARY_COLORS[tl.length%SALARY_COLORS.length];
+  // Assign color by workplace name — same name always gets same color
+  const noteName=(document.getElementById('seNote').value.trim()||'').toLowerCase()||'__default__';
+  const nameColorMap={};
+  let colorIdx=0;
+  tl.filter(x=>x.id!==_editingSalaryId).forEach(x=>{
+    const k=(x.note||'').trim().toLowerCase()||'__default__';
+    if(!nameColorMap[k]){nameColorMap[k]=SALARY_COLORS[colorIdx%SALARY_COLORS.length];colorIdx++;}
+  });
+  if(!nameColorMap[noteName]){nameColorMap[noteName]=SALARY_COLORS[colorIdx%SALARY_COLORS.length];}
+  const nextColor=nameColorMap[noteName];
   const val={
     id: _editingSalaryId||('sal_'+Date.now()),
     from: getSEFromValue(),
