@@ -2266,6 +2266,13 @@ function renderNetIncomeChart(){
 
   // Build legend for named entries
   const namedEntries=tl.filter(x=>x.note&&x.color);
+  // Deduplicate by name — keep first occurrence of each unique name
+  const seen=new Set();
+  const uniqueEntries=namedEntries.filter(x=>{
+    const key=x.note.trim().toLowerCase();
+    if(seen.has(key))return false;
+    seen.add(key);return true;
+  });
   let legendEl=document.getElementById('netIncomeLegend');
   if(!legendEl){
     legendEl=document.createElement('div');
@@ -2273,8 +2280,8 @@ function renderNetIncomeChart(){
     legendEl.style.cssText='display:flex;flex-wrap:wrap;gap:8px;padding:4px 0 8px;';
     canvas.parentNode.insertBefore(legendEl,canvas);
   }
-  if(namedEntries.length>1){
-    legendEl.innerHTML=namedEntries.map(x=>`<span style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--text-muted)"><span style="width:10px;height:10px;border-radius:50%;background:${x.color};display:inline-block;"></span>${x.note}</span>`).join('');
+  if(uniqueEntries.length>1){
+    legendEl.innerHTML=uniqueEntries.map(x=>`<span style="display:flex;align-items:center;gap:4px;font-size:11px;color:var(--text-muted)"><span style="width:10px;height:10px;border-radius:50%;background:${x.color};display:inline-block;"></span>${x.note}</span>`).join('');
   } else {
     legendEl.innerHTML='';
   }
