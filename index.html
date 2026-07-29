@@ -628,7 +628,7 @@
       </div>
       <div class="cad-convert-preview" id="cadPreview"></div>
       <div class="form-label" id="lbl_note">תיאור (אופציונלי)</div>
-      <input type="text" class="form-input" id="noteInput" placeholder="למה זה היה?">
+      <input type="text" class="form-input" id="noteInput" placeholder="למה זה היה?" enterkeyhint="done" onfocus="setTimeout(()=>document.getElementById('btn_saveExpense').scrollIntoView({behavior:'smooth',block:'nearest'}),400)">
       <button class="btn-primary" id="btn_saveExpense" onclick="saveExpense()">שמור הוצאה</button>
       <button class="btn-secondary" id="btn_cancelExpense" onclick="const m=document.getElementById('addModal');delete m.dataset.editId;delete m.dataset.editKey;m.classList.remove('open')">ביטול</button>
     </div>
@@ -877,6 +877,7 @@ function confirmTextInput(){
 // Allow Enter key to confirm
 document.addEventListener('keydown',e=>{
   if(e.key==='Enter'&&document.getElementById('textInputModal').classList.contains('open'))confirmTextInput();
+  if(e.key==='Enter'&&document.activeElement.id==='noteInput')saveExpense();
 });
 
 function toggleLang(){
