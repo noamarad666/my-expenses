@@ -374,6 +374,11 @@
     <h3 id="lbl_customChart2">🚗 רכב — שנה נוכחית</h3>
     <canvas id="customChart2" height="140"></canvas>
   </div>
+  <!-- Foreign account trend -->
+  <div class="chart-card">
+    <h3 id="lbl_foreignTrendChart" style="color:var(--text)">💱 מגמת חשבון חו"ל</h3>
+    <canvas id="foreignTrendChart" height="140"></canvas>
+  </div>
   <!-- Income Summary card -->
   <div id="incomeSummaryCard"></div>
   <!-- Top Categories card -->
@@ -482,6 +487,13 @@
         </div>
         <span class="smi-arrow">›</span>
       </div>
+      <div class="settings-menu-item" onclick="openSettingsPanel('foreign')">
+        <div class="smi-left">
+          <div class="smi-icon">💱</div>
+          <div><div class="smi-text" id="smi_foreign">חשבונות בחו"ל</div><div class="smi-sub" id="smi_foreign_sub">הוסף חשבונות במטבע זר</div></div>
+        </div>
+        <span class="smi-arrow">›</span>
+      </div>
       <div class="settings-menu-item" onclick="openSettingsPanel('theme')">
         <div class="smi-left">
           <div class="smi-icon">🎨</div>
@@ -496,6 +508,15 @@
         </div>
         <span class="smi-arrow">›</span>
       </div>
+    </div>
+
+    <!-- FOREIGN ACCOUNTS panel -->
+    <div class="settings-panel" id="settingsPanelForeign">
+      <button class="settings-back" onclick="openSettingsPanel('menu')">‹ <span id="lbl_backBtnForeign">חזרה</span></button>
+      <div class="section-title" id="lbl_foreignSection">💱 חשבונות בחו"ל</div>
+      <div style="font-size:12px;color:var(--text-muted);padding:0 4px 12px;" id="lbl_foreignSub">הוסף חשבונות חיסכון במטבע זר. היתרה תומר לשקלים בשערי יום.</div>
+      <div id="foreignAccountsList"></div>
+      <button id="btn_addForeign" onclick="addForeignAccount()" style="width:100%;background:rgba(16,185,129,0.1);border:1px solid var(--green);color:var(--green);border-radius:10px;padding:10px;font-family:'Heebo',sans-serif;font-size:14px;font-weight:700;cursor:pointer;margin-top:8px;">+ הוסף חשבון</button>
     </div>
 
     <!-- CATBUDGET panel -->
@@ -803,6 +824,11 @@ function renderStaticUI(){
   const lbTestRecSub=document.getElementById('lbl_testRecurringSub');if(lbTestRecSub)lbTestRecSub.textContent=e?'Simulate opening the app at the start of a new month':'הדמה של פתיחת האפליקציה בתחילת חודש חדש';
   const btnTestRec=document.getElementById('btn_testRecurring2');if(btnTestRec)btnTestRec.textContent=e?'🔄 Recurring Charges':'🔄 תשלומים חוזרים';
   const btnRecCats=document.getElementById('btn_recurringFromCats');if(btnRecCats)btnRecCats.textContent=e?'🔄 Recurring Charges':'🔄 תשלומים חוזרים';
+  const smiForeign=document.getElementById('smi_foreign');if(smiForeign)smiForeign.textContent=e?'Foreign Accounts':'חשבונות בחו"ל';
+  const smiForeignSub=document.getElementById('smi_foreign_sub');if(smiForeignSub)smiForeignSub.textContent=e?'Add accounts in foreign currency':'הוסף חשבונות במטבע זר';
+  const lbForeign=document.getElementById('lbl_foreignSection');if(lbForeign)lbForeign.textContent=e?'💱 Foreign Accounts':'💱 חשבונות בחו"ל';
+  const lbForeignSub=document.getElementById('lbl_foreignSub');if(lbForeignSub)lbForeignSub.textContent=e?'Add savings accounts in foreign currency. Balance is converted to ₪ at daily rates.':'הוסף חשבונות חיסכון במטבע זר. היתרה תומר לשקלים בשערי יום.';
+  const btnAddForeign=document.getElementById('btn_addForeign');if(btnAddForeign)btnAddForeign.textContent=e?'+ Add Account':'+ הוסף חשבון';
   const lbNicoleHint=document.getElementById('lbl_nicoleHint');if(lbNicoleHint)lbNicoleHint.textContent=e?'Tap ✏️ to change the name of the person or group. Tap Hide to remove this section from the Saving tab entirely.':'לחץ ✏️ לשינוי שם האדם או הקבוצה. לחץ הסתר כדי להסיר את החלק הזה מלשונית החסכונות לחלוטין.';
   const smiSharedSub=document.getElementById('smi_shared_sub');if(smiSharedSub)smiSharedSub.textContent=e?'Choose categories to split in half with a shared person':'בחר קטגוריות לחלוקה שווה עם אדם נוסף';
   const smiTheme=document.getElementById('smi_theme');if(smiTheme)smiTheme.textContent=e?'Color Theme':'ערכת צבעים';
@@ -894,6 +920,23 @@ const WEALTH_ACCOUNTS=[
   {id:'keren',   name:'קרן השתלמות',            nameEn:'Education Fund',      icon:'🌿'},
   {id:'kupat',   name:"קופת גמ\"ל",             nameEn:'Provident Fund (Gemel)',icon:'💼'},
 ];
+
+function getForeignAccounts(){return ls('foreign_accounts',[]);}
+function saveForeignAccounts(a){lsSet('foreign_accounts',a);}
+function getForeignData(){return ls('foreign_data',{});}
+function saveForeignData(d){lsSet('foreign_data',d);}
+function getForeignForKey(key){return getForeignData()[key]||[];}
+
+async function getFxRate(cur){
+  if(cur==='NIS'||cur==='ILS')return 1;
+  if(fxRates[cur])return fxRates[cur];
+  try{
+    const r=await fetch(`https://api.frankfurter.app/latest?from=${cur}&to=ILS`);
+    const d=await r.json();
+    fxRates[cur]=d.rates.ILS;
+    return fxRates[cur];
+  }catch(e){return fxFallback[cur]||1;}
+}
 
 function getWealthNames(){return ls('wealth_names',{});}
 function saveWealthNames(n){lsSet('wealth_names',n);}
@@ -1008,7 +1051,7 @@ const CAR_CATS    = ['insurance_car','car_test','fuel','parking','public_transpo
 // ── State ───────────────────────────────────────────────
 let currentDate=new Date(); currentDate.setDate(1);
 let selectedCatId=null, currentTab='analysis', isPastExpense=false;
-let pieCharts=[null,null], wealthChart=null, incomeExpenseChart=null, customChart1=null, customChart2=null, netIncomeChart=null, spendTrendChart=null, savingsRateChart=null, budgetUsageChart=null, avgVsCurrentChart=null;
+let pieCharts=[null,null], wealthChart=null, incomeExpenseChart=null, customChart1=null, customChart2=null, netIncomeChart=null, spendTrendChart=null, savingsRateChart=null, budgetUsageChart=null, avgVsCurrentChart=null, foreignTrendChart=null;
 let entryType='expense';
 
 // ── Storage ─────────────────────────────────────────────
@@ -1332,7 +1375,8 @@ function deleteSalaryEntry(id){
 function getWealthData(){return ls('wealth_data',{});}
 function saveWealthData(d){lsSet('wealth_data',d);}
 function getWealthForKey(key){const d=getWealthData();return d[key]||{};}
-function getWealthTotal(key){return Object.values(getWealthForKey(key)).reduce((s,v)=>s+v,0);}
+function getForeignTotal(key){return (getForeignData()[key]||[]).reduce((s,x)=>s+(x.amountILS||0),0);}
+function getWealthTotal(key){return Object.values(getWealthForKey(key)).reduce((s,v)=>s+v,0)+getForeignTotal(key);}
 
 
 // Custom categories & groups (stored, merged with CATEGORIES at runtime)
@@ -1530,7 +1574,9 @@ function renderHistoryView(){
 function renderWealthCard(){
   const key=getMonthKey(currentDate);
   const acc=getWealthForKey(key);
-  const total=Object.values(acc).reduce((s,v)=>s+v,0);
+  const foreignEntries=getForeignData()[key]||[];
+  const foreignILS=foreignEntries.reduce((s,x)=>s+(x.amountILS||0),0);
+  const total=Object.values(acc).reduce((s,v)=>s+v,0)+foreignILS;
   document.getElementById('wealthTotal').textContent=total>0?fmt(total):'—';
 
   // Delta vs previous month
@@ -1545,11 +1591,20 @@ function renderWealthCard(){
 
   const bd=document.getElementById('wealthBreakdown');
   if(total>0){
+    const foreignAccounts=getForeignAccounts();
+    const foreignRows=foreignEntries.map(fe=>{
+      const fa=foreignAccounts.find(x=>x.id===fe.id);
+      if(!fa||!fe.amount)return '';
+      const sym=fa.currency==='USD'?'$':fa.currency==='CAD'?'CA$':'₪';
+      const curIcon=fa.currency==='USD'?'$':fa.currency==='CAD'?'C$':'₪';
+      const origStr=sym+fe.amount.toLocaleString();
+      return `<div class="analysis-row"><span class="name">${curIcon} ${fa.name}</span><span class="val" style="color:var(--teal)">${fmt(fe.amountILS)} <span style="font-size:11px;color:var(--text-muted)">(${origStr})</span></span></div>`;
+    }).join('');
     bd.innerHTML=WEALTH_ACCOUNTS.map(a=>{
       const aName=getWealthAccountName(a);
       const v=acc[a.id]||0;
       return v>0?`<div class="analysis-row"><span class="name">${a.icon} ${aName}</span><span class="val" style="color:var(--teal)">${fmt(v)}</span></div>`:'';
-    }).join('');
+    }).join('')+foreignRows;
   } else {
     bd.innerHTML=`<div style="color:var(--text-muted);font-size:12px;padding:8px 0">${lang==='en'?'No data entered for this month':'לא הוזנו יתרות לחודש זה'}</div>`;
   }
@@ -1570,10 +1625,13 @@ function renderAnalysisView(){
   if(isChartVisible('biggestChanges'))renderBiggestChanges(); else{const c=document.getElementById('biggestChangesCard');if(c)c.innerHTML='';}
   if(isChartVisible('avgVsCurrent'))renderAvgVsCurrentChart();
 
+  if(isChartVisible('foreignTrend'))renderForeignTrendChart();
+
   const map={
     incomeExp:'incomeExpenseChart',spendTrend:'spendTrendChart',
     savingsRate:'savingsRateChart',netIncome:'netIncomeChart',
-    budgetUsage:'budgetUsageChart',avgVsCurrent:'avgVsCurrentChart'
+    budgetUsage:'budgetUsageChart',avgVsCurrent:'avgVsCurrentChart',
+    foreignTrend:'foreignTrendChart'
   };
   Object.entries(map).forEach(([id,canvasId])=>{
     const card=document.getElementById(canvasId)?.closest('.chart-card');
@@ -2045,6 +2103,53 @@ function renderSavingsRateChart(){
   });
 }
 
+function renderForeignTrendChart(){
+  const e=lang==='en';
+  const lbl=document.getElementById('lbl_foreignTrendChart');
+  if(lbl)lbl.textContent=e?'💱 Foreign Account Trend — Last 12 Months':'💱 מגמת חשבון חו"ל — 12 חודשים אחרונים';
+  const canvas=document.getElementById('foreignTrendChart');
+  if(!canvas)return;
+  const accounts=getForeignAccounts();
+  const fd=getForeignData();
+  if(!accounts.length){canvas.closest('.chart-card').style.display='none';return;}
+  canvas.closest('.chart-card').style.display='';
+  const today=new Date();
+  const monthsArr=[];
+  for(let i=11;i>=0;i--){
+    const d=new Date(today.getFullYear(),today.getMonth()-i,1);
+    const k=getMonthKey(d);
+    const[yr,mo]=k.split('-');
+    const mNames=['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+    const mNamesHe=['ינו','פבר','מרץ','אפר','מאי','יוני','יולי','אוג','ספט','אוק','נוב','דצמ'];
+    monthsArr.push({key:k,label:(e?mNames:mNamesHe)[parseInt(mo)-1]+' '+yr.slice(2)});
+  }
+  const colors=['#f59e0b','#3b82f6','#10b981','#ef4444','#8b5cf6'];
+  const datasets=accounts.map((fa,i)=>({
+    label:fa.name+' ('+fa.currency+')',
+    data:monthsArr.map(m=>{
+      const entries=fd[m.key]||[];
+      const entry=entries.find(x=>x.id===fa.id);
+      return entry?entry.amountILS:null;
+    }),
+    borderColor:colors[i%colors.length],
+    backgroundColor:'transparent',
+    borderWidth:2,pointRadius:3,tension:0.3,fill:false,spanGaps:false,
+  }));
+  if(foreignTrendChart){foreignTrendChart.destroy();foreignTrendChart=null;}
+  foreignTrendChart=new Chart(canvas,{
+    type:'line',
+    data:{labels:monthsArr.map(m=>m.label),datasets},
+    options:{responsive:true,
+      plugins:{legend:{labels:{color:CHART_DEFAULTS.color,font:CHART_DEFAULTS.font,boxWidth:10}},
+        tooltip:{callbacks:{label:ctx=>ctx.dataset.label+': '+fmt(ctx.parsed.y)}}},
+      scales:{
+        x:{ticks:{color:CHART_DEFAULTS.color,font:CHART_DEFAULTS.font,maxRotation:45},grid:{color:CHART_DEFAULTS.grid.color}},
+        y:{ticks:{color:CHART_DEFAULTS.color,font:CHART_DEFAULTS.font,callback:v=>fmt(v)},grid:{color:CHART_DEFAULTS.grid.color},beginAtZero:false}
+      }
+    }
+  });
+}
+
 function renderBiggestChanges(){
   const e=lang==='en';
   const container=document.getElementById('biggestChangesCard');
@@ -2324,9 +2429,10 @@ const ANALYSIS_CHARTS_DEF=[
   {id:'budgetUsage',    icon:'🎯', labelEn:'Budget Usage',        labelHe:'שימוש בתקציב',       descEn:'Horizontal bars showing % used per budgeted category (last month)',descHe:'פסים אופקיים המציגים % שימוש לפי קטגוריה (חודש שעבר)'},
   {id:'biggestChanges', icon:'🔥', labelEn:'Biggest Changes',     labelHe:'שינויים גדולים',      descEn:'Smart cards showing which categories changed most vs your 3-month average (last month)',descHe:'כרטיסים חכמים המציגים אילו קטגוריות השתנו הכי הרבה מול הממוצע (חודש שעבר)'},
   {id:'avgVsCurrent',   icon:'📅', labelEn:'Avg vs Last Month',   labelHe:'ממוצע מול חודש שעבר', descEn:'Bar chart comparing last month spending per category vs your 6-month average',descHe:'גרף השוואת הוצאות חודש שעבר מול הממוצע ל-6 חודשים'},
+  {id:'foreignTrend',   icon:'💱', labelEn:'Foreign Account Trend',labelHe:'מגמת חשבון חו"ל',    descEn:'Line chart of your foreign account balance in ₪ over 12 months (only shown if you have a foreign account)',descHe:'גרף קו של יתרת החשבון הזר בשקלים ב-12 חודשים אחרונים'},
 ];
 
-const CHARTS_DEFAULT_OFF=['biggestChanges','avgVsCurrent','budgetUsage'];
+const CHARTS_DEFAULT_OFF=['biggestChanges','avgVsCurrent','budgetUsage','foreignTrend'];
 
 function getChartVisibility(){
   const saved=ls('analysis_charts_visible',null);
@@ -2612,10 +2718,67 @@ function openWealthModal(){
     wrap.appendChild(inputRow);
     container.appendChild(wrap);
   });
+  // Foreign accounts section
+  const foreignAccounts=getForeignAccounts();
+  const foreignData=getForeignForKey(key);
+  if(foreignAccounts.length>0){
+    const sep=document.createElement('div');
+    sep.style.cssText='border-top:1px solid var(--border);margin:12px 0 10px;';
+    const sepLbl=document.createElement('div');
+    sepLbl.className='section-title';
+    sepLbl.style.cssText='padding:0 0 8px;font-size:11px;';
+    sepLbl.textContent=e?'🌍 Foreign Accounts':'🌍 חשבונות בחו"ל';
+    container.appendChild(sep);
+    container.appendChild(sepLbl);
+
+    foreignAccounts.forEach((fa,idx)=>{
+      const saved=foreignData.find(x=>x.id===fa.id)||{};
+      const curIcon=fa.currency==='USD'?'$':fa.currency==='CAD'?'C$':'₪';
+      const wrap=document.createElement('div');
+      wrap.style.cssText='margin-bottom:12px;';
+      const labelRow=document.createElement('div');
+      labelRow.style.cssText='display:flex;align-items:center;gap:6px;margin-bottom:4px;';
+      const lbl=document.createElement('div');
+      lbl.className='form-label';
+      lbl.style.cssText='flex:1;margin:0;';
+      lbl.textContent=curIcon+' '+fa.name+' ('+fa.currency+')';
+      labelRow.appendChild(lbl);
+      const inputRow=document.createElement('div');
+      inputRow.style.cssText='display:flex;align-items:center;gap:8px;';
+      const input=document.createElement('input');
+      input.type='text';
+      input.inputMode='text';
+      input.className='form-input';
+      input.id='foreignInput_'+fa.id;
+      input.value=saved.amount||'';
+      input.placeholder=e?'e.g. 1500+3000':'לדוג׳ 1500+3000';
+      input.style.marginBottom='0';
+      const preview=document.createElement('span');
+      preview.style.cssText='font-size:11px;color:var(--teal);min-width:70px;';
+      const updateFxPreview=async()=>{
+        const v=evalWealthExpr(input.value);
+        if(v>0&&fa.currency!=='NIS'){
+          const rate=await getFxRate(fa.currency);
+          preview.textContent='≈ '+fmt(Math.round(v*rate));
+        } else { preview.textContent=''; }
+      };
+      input.addEventListener('input',updateFxPreview);
+      const sym=document.createElement('span');
+      sym.style.cssText='font-size:13px;color:var(--text-muted);flex-shrink:0;';
+      sym.textContent=fa.currency==='USD'?'$':fa.currency==='CAD'?'CA$':'₪';
+      inputRow.appendChild(input);
+      inputRow.appendChild(sym);
+      inputRow.appendChild(preview);
+      wrap.appendChild(labelRow);
+      wrap.appendChild(inputRow);
+      container.appendChild(wrap);
+    });
+  }
+
   document.getElementById('wealthModal').classList.add('open');
 }
 
-function saveWealth(){
+async function saveWealth(){
   const key=getMonthKey(currentDate);
   const d=getWealthData();
   const acc={};
@@ -2625,8 +2788,114 @@ function saveWealth(){
     if(v>0)acc[a.id]=v;
   });
   d[key]=acc; saveWealthData(d);
+
+  // Save foreign accounts
+  const foreignAccounts=getForeignAccounts();
+  const fd=getForeignData();
+  const foreignEntries=[];
+  for(const fa of foreignAccounts){
+    const el=document.getElementById('foreignInput_'+fa.id);
+    const v=evalWealthExpr(el?el.value:'');
+    if(v>0){
+      const rate=await getFxRate(fa.currency);
+      foreignEntries.push({id:fa.id,amount:v,rate,amountILS:Math.round(v*rate)});
+    }
+  }
+  fd[key]=foreignEntries;
+  saveForeignData(fd);
+
   document.getElementById('wealthModal').classList.remove('open');
   renderWealthCard(); renderWealthChart();
+}
+
+// ── Foreign Accounts Settings ────────────────────────────
+function renderForeignAccountsList(){
+  const e=lang==='en';
+  const accounts=getForeignAccounts();
+  const container=document.getElementById('foreignAccountsList');
+  if(!container)return;
+  container.innerHTML='';
+  if(!accounts.length){
+    const empty=document.createElement('div');
+    empty.style.cssText='font-size:13px;color:var(--text-muted);padding:8px 4px;';
+    empty.textContent=e?'No foreign accounts yet':'עוד אין חשבונות בחו"ל';
+    container.appendChild(empty);
+    return;
+  }
+  accounts.forEach(fa=>{
+    const row=document.createElement('div');
+    row.style.cssText='display:flex;align-items:center;gap:10px;padding:10px 12px;margin-bottom:6px;background:var(--surface);border:1px solid var(--border);border-radius:12px;';
+    const info=document.createElement('div');
+    info.style.cssText='flex:1;font-size:13px;font-weight:600;';
+    const curIcon=fa.currency==='USD'?'$':fa.currency==='CAD'?'C$':'₪';
+    info.textContent=curIcon+' '+fa.name+' · '+fa.currency;
+    const del=document.createElement('button');
+    del.textContent='✕';
+    del.style.cssText='background:none;border:none;color:var(--text-muted);font-size:16px;cursor:pointer;';
+    del.onclick=()=>{
+      const updated=getForeignAccounts().filter(x=>x.id!==fa.id);
+      saveForeignAccounts(updated);
+      renderForeignAccountsList();
+    };
+    row.appendChild(info);
+    row.appendChild(del);
+    container.appendChild(row);
+  });
+}
+
+function addForeignAccount(){
+  const e=lang==='en';
+  // Show a custom modal for name + currency
+  const modal=document.createElement('div');
+  modal.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:500;display:flex;align-items:flex-end;justify-content:center;';
+  const box=document.createElement('div');
+  box.style.cssText='background:var(--surface);border-radius:20px 20px 0 0;padding:24px 20px 40px;width:100%;max-width:430px;';
+  box.innerHTML=`
+    <div style="width:40px;height:4px;background:var(--border);border-radius:2px;margin:0 auto 16px;"></div>
+    <h3 style="margin-bottom:16px;font-size:16px;">${e?'Add Foreign Account':'הוסף חשבון בחו"ל'}</h3>
+    <div class="form-label">${e?'Account Name':'שם החשבון'}</div>
+    <input type="text" id="newForeignName" class="form-input" placeholder="${e?'e.g. TD Canada':'לדוג׳ TD Canada'}" style="margin-bottom:14px;">
+    <div class="form-label">${e?'Currency':'מטבע'}</div>
+    <div style="display:flex;gap:8px;margin-bottom:20px;">
+      <button data-cur="NIS" onclick="selectForeignCur(this)" style="flex:1;padding:10px;border-radius:10px;border:2px solid var(--amber);background:rgba(245,158,11,0.15);color:var(--amber);font-weight:700;cursor:pointer;font-family:'Heebo',sans-serif;">₪ NIS</button>
+      <button data-cur="USD" onclick="selectForeignCur(this)" style="flex:1;padding:10px;border-radius:10px;border:1px solid var(--border);background:var(--surface2);color:var(--text-muted);font-weight:700;cursor:pointer;font-family:'Heebo',sans-serif;">$ USD</button>
+      <button data-cur="CAD" onclick="selectForeignCur(this)" style="flex:1;padding:10px;border-radius:10px;border:1px solid var(--border);background:var(--surface2);color:var(--text-muted);font-weight:700;cursor:pointer;font-family:'Heebo',sans-serif;">CA$</button>
+    </div>
+    <button onclick="confirmAddForeign()" class="btn-primary" style="margin-bottom:8px;">${e?'Add':'הוסף'}</button>
+    <button onclick="this.closest('[data-foreignmodal]').remove()" class="btn-secondary">${e?'Cancel':'ביטול'}</button>
+  `;
+  modal.dataset.foreignmodal='1';
+  modal.appendChild(box);
+  // Default select NIS
+  modal._selectedCur='NIS';
+  document.body.appendChild(modal);
+  modal.addEventListener('click',ev=>{if(ev.target===modal)modal.remove();});
+  setTimeout(()=>document.getElementById('newForeignName')?.focus(),100);
+}
+
+function selectForeignCur(btn){
+  const modal=btn.closest('[data-foreignmodal]');
+  modal._selectedCur=btn.dataset.cur;
+  btn.closest('div').querySelectorAll('button').forEach(b=>{
+    const active=b===btn;
+    b.style.borderColor=active?'var(--amber)':'var(--border)';
+    b.style.background=active?'rgba(245,158,11,0.15)':'var(--surface2)';
+    b.style.color=active?'var(--amber)':'var(--text-muted)';
+    b.style.borderWidth=active?'2px':'1px';
+  });
+}
+
+function confirmAddForeign(){
+  const modal=document.querySelector('[data-foreignmodal]');
+  if(!modal)return;
+  const name=document.getElementById('newForeignName')?.value.trim();
+  if(!name){document.getElementById('newForeignName')?.focus();return;}
+  const cur=modal._selectedCur||'USD';
+  const accounts=getForeignAccounts();
+  accounts.push({id:'foreign_'+Date.now(),name,currency:cur});
+  saveForeignAccounts(accounts);
+  modal.remove();
+  renderForeignAccountsList();
 }
 
 // ── Settings ─────────────────────────────────────────────
@@ -2895,6 +3164,7 @@ function openSettingsPanel(panel){
   else if(panel==='shared'){document.getElementById('settingsPanelShared').classList.add('active');renderSettings();}
   else if(panel==='theme'){document.getElementById('settingsPanelTheme').classList.add('active');renderThemeGrid();}
   else if(panel==='charts'){document.getElementById('settingsPanelCharts').classList.add('active');renderChartVisibilityPicker();renderChartGroupPicker();}
+  else if(panel==='foreign'){document.getElementById('settingsPanelForeign').classList.add('active');renderForeignAccountsList();}
   else if(panel==='backup'){document.getElementById('settingsPanelBackup').classList.add('active');updateLastBackupLabel();}
 }
 
@@ -2909,6 +3179,8 @@ function getAllAppData(){
     nicole:      getNicole(),
     wealth:      ls('wealth_data',{}),
     wealthNames: getWealthNames(),
+    foreignAccounts: getForeignAccounts(),
+    foreignData: getForeignData(),
     hidden:      getHiddenCats(),
     custom:      getCustomCats(),
     lang:        lang,
@@ -2959,6 +3231,8 @@ function importData(event){
       lsSet('nicole',data.nicole||{});
       lsSet('wealth_data',data.wealth||{});
       if(data.wealthNames)lsSet('wealth_names',data.wealthNames);
+      if(data.foreignAccounts)lsSet('foreign_accounts',data.foreignAccounts);
+      if(data.foreignData)lsSet('foreign_data',data.foreignData);
       saveHiddenCats(data.hidden||[]);
       saveCustomCats(data.custom||{cats:[],groups:[]});
       if(data.lang){lang=data.lang;localStorage.setItem('app_lang',lang);}
