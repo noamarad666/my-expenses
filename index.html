@@ -272,6 +272,14 @@
 
   /* Insight cards */
   .insight-card{display:flex;align-items:flex-start;gap:12px;background:var(--surface);border:1px solid var(--border);border-radius:14px;padding:12px 14px;margin-bottom:8px;}
+  .insight-card.expandable{cursor:pointer;}
+  .insight-card.expandable:active{opacity:0.8;}
+  .insight-expand{font-size:11px;color:var(--text-muted);margin-top:4px;}
+  .insight-breakdown{margin-top:10px;padding-top:10px;border-top:1px solid var(--border);display:none;}
+  .insight-breakdown.open{display:block;}
+  .insight-breakdown-row{display:flex;justify-content:space-between;align-items:center;padding:4px 0;font-size:12px;border-bottom:1px solid var(--border);}
+  .insight-breakdown-row:last-child{border-bottom:none;}
+  .insight-breakdown-row .ibd-name{color:var(--text);}
   .insight-icon{font-size:22px;flex-shrink:0;margin-top:1px;}
   .insight-text{font-size:13px;line-height:1.5;color:var(--text);}
   .insight-text strong{color:var(--amber);font-weight:700;}
@@ -2038,9 +2046,95 @@ function renderInsights(){
     }
   }
 
-  container.innerHTML=insights.slice(0,2).map(ins=>
-    `<div class="insight-card ${ins.type}"><div class="insight-icon">${ins.icon}</div><div class="insight-text">${ins.text}</div></div>`
-  ).join('');
+  // Build breakdown for spending-warning insight
+  function buildBreakdown(viewedKey, viewedNet){
+    const e2=lang==='en';
+    const rows=[];
+    const hidden=getHiddenCats();
+    const cats=getAllCats().filter(c=>!hidden.includes(c.id));
+
+    // 1. Categories over budget by 30%+ AND more than 200 shekel over
+    cats.forEach(cat=>{
+      const budget=getCatBudget(cat.id);
+      if(budget<=0)return;
+      const spent=getCatSpentInKey(cat.id,viewedKey);
+      const over=spent-budget;
+      const overPct=Math.round((spent/budget)*100);
+      if(overPct>=130&&over>=200){
+        rows.push({
+          icon:cat.icon,name:cat.name,
+          label:e2?`${overPct}% of budget (+${fmt(over)} over)`:`${overPct}% מהתקציב (+${fmt(over)} מעל)`,
+          amount:spent,type:'budget'
+        });
+      }
+    });
+
+    // 2. High single-category spend (1000+ shekels) even without a budget
+    cats.forEach(cat=>{
+      const budget=getCatBudget(cat.id);
+      const spent=getCatSpentInKey(cat.id,viewedKey);
+      if(spent>=1000&&budget<=0){
+        rows.push({
+          icon:cat.icon,name:cat.name,
+          label:e2?'No budget set':'ללא תקציב',
+          amount:spent,type:'high'
+        });
+      }
+    });
+
+    // Sort by amount desc, cap at 5
+    rows.sort((a,b)=>b.amount-a.amount);
+    return rows.slice(0,5);
+  }
+
+  const expandInsight=insights[0]; // the spending insight
+  const breakdown=(expandInsight&&expandInsight.type==='warning')?buildBreakdown(viewedKey,viewedNet):[];
+
+  container.innerHTML='';
+  insights.slice(0,2).forEach((ins,idx)=>{
+    const card=document.createElement('div');
+    card.className=`insight-card ${ins.type}${idx===0&&breakdown.length?' expandable':''}`;
+    const e2=lang==='en';
+
+    const icon=document.createElement('div');
+    icon.className='insight-icon';
+    icon.textContent=ins.icon;
+
+    const textWrap=document.createElement('div');
+    textWrap.style.flex='1';
+    const textEl=document.createElement('div');
+    textEl.className='insight-text';
+    textEl.innerHTML=ins.text;
+    textWrap.appendChild(textEl);
+
+    if(idx===0&&breakdown.length){
+      const hint=document.createElement('div');
+      hint.className='insight-expand';
+      hint.textContent=e2?'Tap to see breakdown ▾':'לחץ לפירוט ▾';
+      textWrap.appendChild(hint);
+
+      const bd=document.createElement('div');
+      bd.className='insight-breakdown';
+      breakdown.forEach(row=>{
+        const r=document.createElement('div');
+        r.className='insight-breakdown-row';
+        r.innerHTML=`<span class="ibd-name">${row.icon} ${row.name}<br><span style="font-size:11px;color:var(--text-muted)">${row.label}</span></span>`
+          +`<span style="font-weight:700;color:${row.type==='budget'?'var(--red)':'var(--orange)'};">${fmt(row.amount)}</span>`;
+        bd.appendChild(r);
+      });
+      textWrap.appendChild(bd);
+
+      card.addEventListener('click',()=>{
+        const isOpen=bd.classList.contains('open');
+        bd.classList.toggle('open',!isOpen);
+        hint.textContent=isOpen?(e2?'Tap to see breakdown ▾':'לחץ לפירוט ▾'):(e2?'Tap to close ▴':'לחץ לסגירה ▴');
+      });
+    }
+
+    card.appendChild(icon);
+    card.appendChild(textWrap);
+    container.appendChild(card);
+  });
 }
 
 function renderSpendTrendChart(){
