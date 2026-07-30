@@ -1407,7 +1407,7 @@ function getCatSpentInKey(catId,key){return getExpensesForKey(key).filter(t=>t.c
 function getCatSpent(catId){return getCatSpentInKey(catId,getMonthKey(currentDate));}
 function getTotalSpentInKey(key,visibleOnly=false){
   const hidden=visibleOnly?getHiddenCats():[];
-  return getExpensesForKey(key).filter(t=>!hidden.includes(t.catId)).reduce((s,t)=>s+t.amount,0);
+  return getExpensesForKey(key).filter(t=>!hidden.includes(t.catId)&&t.amount>0).reduce((s,t)=>s+t.amount,0);
 }
 function getTotalSpent(){return getTotalSpentInKey(getMonthKey(currentDate),true);}
 function getTotalBudget(){const hidden=getHiddenCats();return getAllCats().filter(c=>!hidden.includes(c.id)).reduce((s,c)=>s+getCatBudget(c.id),0);}
@@ -1932,104 +1932,108 @@ function renderInsights(){
   const container=document.getElementById('insightsCard');
   if(!container)return;
   const insights=[];
-  const now=new Date();
 
-  // Collect last 6 completed months of data
-  const months=[];
-  for(let i=1;i<=6;i++){
-    const d=new Date(now.getFullYear(),now.getMonth()-i,1);
+  // "Viewed month" = currentDate. If viewing current month, use it as-is.
+  // Baseline = 5 months before the viewed month.
+  const viewedKey=getMonthKey(currentDate);
+  const viewedLabel=monthKeyToLabel(viewedKey);
+  const nowKey=getMonthKey(new Date());
+  const isCurrentMonth=viewedKey===nowKey;
+
+  // Get viewed month data
+  const viewedSpent=getTotalSpentInKey(viewedKey,true);
+  const savedDate=currentDate;
+  const viewedNet=getNet();
+  currentDate=savedDate;
+  const viewedSaved=viewedNet>0?viewedNet-viewedSpent:null;
+  const viewedRate=viewedNet>0?Math.round(((viewedNet-viewedSpent)/viewedNet)*100):null;
+
+  // Baseline: 5 months before viewed month
+  const baseline=[];
+  for(let i=1;i<=5;i++){
+    const d=new Date(currentDate.getFullYear(),currentDate.getMonth()-i,1);
     const key=getMonthKey(d);
     const spent=getTotalSpentInKey(key,true);
-    const savedDate=currentDate;
     currentDate=d;
     const net=getNet();
     currentDate=savedDate;
-    const saved=net>0?net-spent:null;
-    const rate=net>0?Math.round(((net-spent)/net)*100):null;
-    months.push({key,spent,net,saved,rate,d});
+    if(net>0&&spent>0){
+      const rate=Math.round(((net-spent)/net)*100);
+      baseline.push({key,spent,net,saved:net-spent,rate});
+    }
   }
+  currentDate=savedDate;
 
-  const last=months[0];   // x-1 last completed month
-  const prev=months[1];   // x-2
-  const lastMonthName=monthKeyToLabel(last.key);
-
-  // Personal average savings rate from months x-2 to x-6 (exclude last month so it's a true baseline)
-  const baseline=months.slice(1).filter(m=>m.rate!==null&&m.net>0&&m.spent>0);
   const avgRate=baseline.length>0?Math.round(baseline.reduce((s,m)=>s+m.rate,0)/baseline.length):null;
-  const avgSaved=baseline.length>0?Math.round(baseline.reduce((s,m)=>s+(m.saved||0),0)/baseline.length):null;
+  const avgSpent=baseline.length>0?Math.round(baseline.reduce((s,m)=>s+m.spent,0)/baseline.length):null;
 
-  // Insight 1: spending vs personal average (not just previous month)
-  if(last.spent>0 && baseline.length>0){
-    const avgSpent=Math.round(baseline.reduce((s,m)=>s+m.spent,0)/baseline.length);
-    const diff=last.spent-avgSpent;
+  // Insight 1: spending vs personal average
+  if(viewedSpent>0&&avgSpent&&avgSpent>0){
+    const diff=viewedSpent-avgSpent;
     const pct=Math.round(Math.abs(diff)/avgSpent*100);
     if(diff>avgSpent*0.08){
-      // Spent meaningfully more than average
-      insights.push({
-        icon:'📈', type:'warning',
-        text: e
-          ? `In <strong>${lastMonthName}</strong> you spent <strong>${fmt(diff)} more</strong> than your usual average (+${pct}%)`
-          : `ב<strong>${lastMonthName}</strong> הוצאת <strong>${fmt(diff)} יותר</strong> מהממוצע האישי שלך (+${pct}%)`
+      insights.push({icon:'📈',type:'warning',
+        text:e?`In <strong>${viewedLabel}</strong> you spent <strong>${fmt(diff)} more</strong> than your usual average (+${pct}%)`
+              :`ב<strong>${viewedLabel}</strong> הוצאת <strong>${fmt(diff)} יותר</strong> מהממוצע האישי שלך (+${pct}%)`
       });
     } else if(diff<-avgSpent*0.08){
-      // Spent meaningfully less than average
-      insights.push({
-        icon:'📉', type:'positive',
-        text: e
-          ? `In <strong>${lastMonthName}</strong> you spent <strong>${fmt(Math.abs(diff))} less</strong> than your usual average (${pct}% below avg)`
-          : `ב<strong>${lastMonthName}</strong> הוצאת <strong>${fmt(Math.abs(diff))} פחות</strong> מהממוצע האישי שלך (${pct}% פחות)`
+      insights.push({icon:'📉',type:'positive',
+        text:e?`In <strong>${viewedLabel}</strong> you spent <strong>${fmt(Math.abs(diff))} less</strong> than your usual average (${pct}% below avg)`
+              :`ב<strong>${viewedLabel}</strong> הוצאת <strong>${fmt(Math.abs(diff))} פחות</strong> מהממוצע האישי שלך (${pct}% פחות)`
       });
     }
   }
 
-  // Insight 2: savings rate vs YOUR OWN average (not a fixed threshold)
-  if(last.net>0 && last.spent>0 && last.rate!==null){
-    const rate=last.rate;
-    const saved=last.saved;
-
+  // Insight 2: savings rate vs personal average + category callout
+  if(viewedNet>0&&viewedSpent>0&&viewedRate!==null){
+    const rate=viewedRate;
+    const saved=viewedSaved;
     if(rate<0){
-      // Overspent — always negative
-      insights.push({
-        icon:'⚠️', type:'negative',
-        text: e
-          ? `In <strong>${lastMonthName}</strong> you went <strong>${fmt(Math.abs(saved))} over</strong> your net salary`
-          : `ב<strong>${lastMonthName}</strong> חרגת ב-<strong>${fmt(Math.abs(saved))}</strong> מעל המשכורת`
+      insights.push({icon:'⚠️',type:'negative',
+        text:e?`In <strong>${viewedLabel}</strong> you went <strong>${fmt(Math.abs(saved||0))} over</strong> your net salary`
+              :`ב<strong>${viewedLabel}</strong> חרגת ב-<strong>${fmt(Math.abs(saved||0))}</strong> מעל המשכורת`
       });
     } else if(avgRate!==null){
-      // Compare to personal average
       const diff=rate-avgRate;
       if(diff>=3){
-        // Beat personal average by 3+ points — genuinely good
-        insights.push({
-          icon:'🎉', type:'positive',
-          text: e
-            ? `<strong>${lastMonthName}</strong> — savings rate <strong>${rate}%</strong>, above your usual <strong>${avgRate}%</strong> average (${fmt(saved)} saved)`
-            : `<strong>${lastMonthName}</strong> — שיעור חיסכון <strong>${rate}%</strong>, מעל הממוצע האישי שלך <strong>${avgRate}%</strong> (חסכת ${fmt(saved)})`
+        insights.push({icon:'🎉',type:'positive',
+          text:e?`<strong>${viewedLabel}</strong> — savings rate <strong>${rate}%</strong>, above your usual <strong>${avgRate}%</strong> average (${fmt(saved||0)} saved)`
+                :`<strong>${viewedLabel}</strong> — שיעור חיסכון <strong>${rate}%</strong>, מעל הממוצע האישי שלך <strong>${avgRate}%</strong> (חסכת ${fmt(saved||0)})`
         });
-      } else if(diff<=-5){
-        // Below personal average by 5+ points — worth flagging
-        insights.push({
-          icon:'💡', type:'warning',
-          text: e
-            ? `Your savings rate in <strong>${lastMonthName}</strong> was <strong>${rate}%</strong> — below your usual ${avgRate}% average`
-            : `שיעור החיסכון שלך ב<strong>${lastMonthName}</strong> היה <strong>${rate}%</strong> — מתחת לממוצע האישי שלך ${avgRate}%`
+      } else if(diff<=-3){
+        // Below average — find the top over-budget category to call out
+        const hidden=getHiddenCats();
+        const cats=getAllCats().filter(c=>!hidden.includes(c.id));
+        let worstCat=null,worstOverPct=0;
+        cats.forEach(cat=>{
+          const budget=getCatBudget(cat.id);
+          if(budget<=0)return;
+          const spent=getCatSpentInKey(cat.id,viewedKey);
+          const overPct=Math.round((spent/budget)*100);
+          if(overPct>100&&overPct>worstOverPct){worstOverPct=overPct;worstCat=cat;}
+        });
+        let callout='';
+        if(worstCat){
+          const worstSpent=getCatSpentInKey(worstCat.id,viewedKey);
+          const worstBudget=getCatBudget(worstCat.id);
+          callout=e
+            ? ` Watch out — <strong>${worstCat.icon} ${worstCat.name}</strong> was ${worstOverPct}% of budget (${fmt(worstSpent)} vs ${fmt(worstBudget)} budget).`
+            : ` שים לב — <strong>${worstCat.icon} ${worstCat.name}</strong> היה ${worstOverPct}% מהתקציב (${fmt(worstSpent)} מול תקציב ${fmt(worstBudget)}).`;
+        }
+        insights.push({icon:'💡',type:'warning',
+          text:e?`Your savings rate in <strong>${viewedLabel}</strong> was <strong>${rate}%</strong> — below your usual ${avgRate}% average.${callout}`
+                :`שיעור החיסכון שלך ב<strong>${viewedLabel}</strong> היה <strong>${rate}%</strong> — מתחת לממוצע האישי שלך ${avgRate}%.${callout}`
         });
       } else {
-        // On par with personal average
-        insights.push({
-          icon:'📊', type:'positive',
-          text: e
-            ? `Savings rate in <strong>${lastMonthName}</strong>: <strong>${rate}%</strong> — on par with your ${avgRate}% average (${fmt(saved)} saved)`
-            : `שיעור חיסכון ב<strong>${lastMonthName}</strong>: <strong>${rate}%</strong> — בקנה אחד עם הממוצע שלך ${avgRate}% (חסכת ${fmt(saved)})`
+        insights.push({icon:'📊',type:'positive',
+          text:e?`Savings rate in <strong>${viewedLabel}</strong>: <strong>${rate}%</strong> — on par with your ${avgRate}% average (${fmt(saved||0)} saved)`
+                :`שיעור חיסכון ב<strong>${viewedLabel}</strong>: <strong>${rate}%</strong> — בקנה אחד עם הממוצע שלך ${avgRate}% (חסכת ${fmt(saved||0)})`
         });
       }
     } else {
-      // Not enough history yet — just show the number
-      insights.push({
-        icon:'📊', type:rate>0?'positive':'warning',
-        text: e
-          ? `Savings rate in <strong>${lastMonthName}</strong>: <strong>${rate}%</strong> (${fmt(saved||0)} saved)`
-          : `שיעור חיסכון ב<strong>${lastMonthName}</strong>: <strong>${rate}%</strong> (חסכת ${fmt(saved||0)})`
+      insights.push({icon:'📊',type:rate>0?'positive':'warning',
+        text:e?`Savings rate in <strong>${viewedLabel}</strong>: <strong>${rate}%</strong> (${fmt(saved||0)} saved)`
+              :`שיעור חיסכון ב<strong>${viewedLabel}</strong>: <strong>${rate}%</strong> (חסכת ${fmt(saved||0)})`
       });
     }
   }
