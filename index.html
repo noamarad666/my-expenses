@@ -4191,13 +4191,30 @@ function parseStatementText(lines){
   return [...results,...foreignResults].sort((a,b)=>a.date-b.date);
 }
 
-function findDuplicateExpense(parsed){
+function getRecurringCategorySet(){
+  return new Set(detectRecurring().map(r=>r.catId));
+}
+
+function findDuplicateExpense(parsed,catId){
   const key=getMonthKey(parsed.date);
   const existing=getExpensesForKey(key);
+  const recurringSet=getRecurringCategorySet();
+  const isRecurringCat=catId&&recurringSet.has(catId);
+  const tolerance=Math.max(2,Math.abs(parsed.amount)*0.02);
+
   return existing.find(tx=>{
+    const amountMatch=Math.abs(Math.abs(tx.amount)-Math.abs(parsed.amount))<tolerance;
+    if(!amountMatch)return false;
+    if(isRecurringCat){
+      // Recurring bill (rent, vaad, insurance, subscriptions...) — match by category+amount,
+      // ignore exact day since manual entries and auto-duplicated recurring charges
+      // don't always carry the real transaction day.
+      return tx.catId===catId;
+    }
+    // Non-recurring (supermarket, restaurants, fuel...) — require exact day too,
+    // since these categories have many similar-amount transactions per month.
     const txDate=new Date(tx.date);
-    return txDate.getDate()===parsed.date.getDate()
-      && Math.abs(Math.abs(tx.amount)-Math.abs(parsed.amount))<0.02;
+    return txDate.getDate()===parsed.date.getDate();
   });
 }
 
@@ -4359,9 +4376,10 @@ function renderStatementReview(parsed){
   const dupItems=[],knownItems=[],unknownItems=[];
 
   parsed.forEach((p,idx)=>{
-    const dup=findDuplicateExpense(p);
-    if(dup){dupItems.push({p,idx});return;}
     const mapped=merchantMap[normalizeMerchant(p.merchant)];
+    const guessCat=mapped||suggestCategory(p)||'';
+    const dup=findDuplicateExpense(p,guessCat);
+    if(dup){dupItems.push({p,idx});return;}
     if(mapped){knownItems.push({p,idx,mapped});}
     else{unknownItems.push({p,idx});}
   });
