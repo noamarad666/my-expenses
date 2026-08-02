@@ -3711,7 +3711,7 @@ function saveExpense(){
     delete modal.dataset.editKey;
   }
   if(!data[key])data[key]=[];
-  const dateStr=isPastExpense?(()=>{const[y,m]=key.split('-');return new Date(parseInt(y),parseInt(m),15).toISOString();})():new Date().toISOString();
+  const dateStr=isPastExpense?(()=>{const[y,m]=key.split('-');return new Date(parseInt(y),parseInt(m)-1,15).toISOString();})():new Date().toISOString();
   const finalAmount=entryType==='income'?-amount:amount;
   data[key].push({id:Date.now().toString(),catId:selectedCatId,amount:finalAmount,note,date:dateStr});
   saveData(data);
@@ -4110,6 +4110,72 @@ function parseDomesticLine(line){
   };
 }
 
+function parseForeignSection(lines){
+  let blob='';
+  let inForeign=false;
+  lines.forEach(line=>{
+    if(line.includes('רכישות בחו')){inForeign=true;return;}
+    if(line.includes('עסקות שחויבו')||line.includes('מסגרת הכרטיס')){inForeign=false;return;}
+    if(!inForeign)return;
+    blob+=' '+line;
+  });
+
+  blob=blob.replace(/\*\*[\s\S]*?סך הנחה\s*:\s*[\d.,]+\s*₪/g,' ');
+  blob=blob.replace(/סה"כ חיוב לתאריך\s*\d{2}\/\d{2}\/\d{2}\s*-?[\d,]+\.\d{2}/g,' ');
+  blob=blob.replace(/סה"כ עמלות[^₪]*₪/g,' ');
+
+  const NUM_SIG_RE=/(-?[\d,]+\.\d{2})\s+([\d,]+\.\d{2})\s+([\d.]+)\s+(\d{2}\/\d{2}\/\d{2})\s+([\d,]+\.\d{2})\s*([₪$€£])|(-?[\d,]+\.\d{2})\s*([₪$€£])\s*(-?[\d,]+\.\d{2})/g;
+
+  const matches=[...blob.matchAll(NUM_SIG_RE)];
+  const results=[];
+  let cursor=0;
+  matches.forEach(m=>{
+    const chunk=blob.slice(cursor,m.index);
+    cursor=m.index+m[0].length;
+
+    let chargeILS,originalAmount,originalCurrency;
+    if(m[1]!==undefined){
+      chargeILS=parseFloat(m[1].replace(/,/g,''));
+      originalAmount=parseFloat(m[5].replace(/,/g,''));
+      originalCurrency=m[6];
+    } else {
+      originalAmount=parseFloat(m[7].replace(/,/g,''));
+      originalCurrency=m[8];
+      chargeILS=parseFloat(m[9].replace(/,/g,''));
+    }
+
+    const dateMatch=chunk.match(/(\d{2})\/(\d{2})\/(\d{2})/);
+    let txDate=null;
+    if(dateMatch){
+      const year=2000+parseInt(dateMatch[3],10),month=parseInt(dateMatch[2],10),day=parseInt(dateMatch[1],10);
+      txDate=new Date(year,month-1,day);
+    }
+
+    let merchantText=chunk.replace(/\d{2}\/\d{2}\/\d{2}/g,' ');
+    merchantText=merchantText.split(' ').filter(tok=>{
+      if(tok.length===0)return false;
+      if(/^[\u0590-\u05FF]$/.test(tok))return false;
+      return true;
+    }).join(' ').replace(/\s+/g,' ').trim();
+    const words=merchantText.split(' ');
+    merchantText=words.filter((w,i)=>w!==words[i-1]).join(' ');
+
+    if(txDate){
+      results.push({
+        date:txDate,
+        merchant:normalizeMerchant(merchantText)||'(לא זוהה)',
+        sectorLabel:'',
+        amount:chargeILS,
+        originalAmount,
+        originalCurrency,
+        isForeign:true,
+      });
+    }
+  });
+
+  return results;
+}
+
 function parseStatementText(lines){
   const results=[];
   let inDomestic=false;
@@ -4120,7 +4186,9 @@ function parseStatementText(lines){
     const parsed=parseDomesticLine(line);
     if(parsed)results.push(parsed);
   });
-  return results;
+  const foreignResults=parseForeignSection(lines);
+  // Merge, sorted by date
+  return [...results,...foreignResults].sort((a,b)=>a.date-b.date);
 }
 
 function findDuplicateExpense(parsed){
@@ -4245,6 +4313,12 @@ function renderStatementReview(parsed){
       badge.className='stmt-dup-badge';
       badge.textContent=e?'possible duplicate':'כפילות אפשרית';
       bottom.appendChild(badge);
+    }
+    if(p.isForeign){
+      const fxBadge=document.createElement('span');
+      fxBadge.style.cssText='background:rgba(59,130,246,0.15);color:var(--blue);padding:2px 6px;border-radius:6px;font-size:10px;font-weight:700;';
+      fxBadge.textContent=(p.originalCurrency||'')+p.originalAmount;
+      bottom.appendChild(fxBadge);
     }
 
     row.appendChild(top);
