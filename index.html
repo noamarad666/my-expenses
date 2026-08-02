@@ -4241,97 +4241,171 @@ async function handleStatementFile(file){
   document.getElementById('statementFileInput').value='';
 }
 
+function buildStmtRow(p, idx, opts){
+  const e=lang==='en';
+  const allCats=getAllCats();
+  const dup=opts.dup;
+  const presetCat=opts.presetCat||suggestCategory(p);
+  const row=document.createElement('div');
+  row.className='stmt-row';
+  row.dataset.idx=idx;
+  row.dataset.included=opts.defaultIncluded?'1':'0';
+  if(!opts.defaultIncluded)row.classList.add('excluded');
+  if(dup)row.classList.add('dup');
+
+  const top=document.createElement('div');
+  top.className='stmt-row-top';
+
+  const check=document.createElement('div');
+  check.className='stmt-check'+(opts.defaultIncluded?' on':'');
+  check.textContent=opts.defaultIncluded?'✓':'';
+  check.onclick=()=>{
+    const isOn=row.dataset.included==='1';
+    row.dataset.included=isOn?'0':'1';
+    check.classList.toggle('on',!isOn);
+    check.textContent=isOn?'':'✓';
+    row.classList.toggle('excluded',isOn);
+  };
+
+  const merchantInput=document.createElement('input');
+  merchantInput.type='text';
+  merchantInput.className='stmt-merchant';
+  merchantInput.value=p.merchant;
+
+  const amountSpan=document.createElement('div');
+  amountSpan.className='stmt-amount';
+  amountSpan.style.color=p.amount<0?'var(--green)':'var(--text)';
+  amountSpan.textContent=(p.amount<0?'+':'')+fmt(Math.abs(p.amount));
+
+  top.appendChild(check);
+  top.appendChild(merchantInput);
+  top.appendChild(amountSpan);
+
+  const bottom=document.createElement('div');
+  bottom.className='stmt-row-bottom';
+
+  const dateSpan=document.createElement('span');
+  const dd=String(p.date.getDate()).padStart(2,'0');
+  const mm=String(p.date.getMonth()+1).padStart(2,'0');
+  dateSpan.textContent=dd+'/'+mm+'/'+p.date.getFullYear();
+
+  const catSelect=document.createElement('select');
+  catSelect.className='stmt-cat-select';
+  catSelect.innerHTML=`<option value="">${e?'Choose category...':'בחר קטגוריה...'}</option>`
+    +allCats.map(c=>`<option value="${c.id}"${c.id===presetCat?' selected':''}>${c.icon} ${c.name}</option>`).join('');
+
+  bottom.appendChild(dateSpan);
+  bottom.appendChild(catSelect);
+
+  if(dup){
+    const badge=document.createElement('span');
+    badge.className='stmt-dup-badge';
+    badge.textContent=e?'possible duplicate':'כפילות אפשרית';
+    bottom.appendChild(badge);
+  }
+  if(p.isForeign){
+    const fxBadge=document.createElement('span');
+    fxBadge.style.cssText='background:rgba(59,130,246,0.15);color:var(--blue);padding:2px 6px;border-radius:6px;font-size:10px;font-weight:700;';
+    fxBadge.textContent=(p.originalCurrency||'')+p.originalAmount;
+    bottom.appendChild(fxBadge);
+  }
+
+  row.appendChild(top);
+  row.appendChild(bottom);
+  return row;
+}
+
+function buildCollapsibleSection(titleText,color,rows,startOpen){
+  const e=lang==='en';
+  const wrap=document.createElement('div');
+  wrap.style.cssText='margin-bottom:10px;';
+  const header=document.createElement('div');
+  header.style.cssText='display:flex;justify-content:space-between;align-items:center;padding:8px 10px;background:var(--surface);border:1px solid var(--border);border-radius:10px;cursor:pointer;';
+  const titleSpan=document.createElement('span');
+  titleSpan.style.cssText='font-size:13px;font-weight:700;color:'+color+';';
+  titleSpan.textContent=titleText;
+  const toggleSpan=document.createElement('span');
+  toggleSpan.style.cssText='font-size:11px;color:var(--text-muted);';
+  toggleSpan.textContent=startOpen?(e?'Hide ▴':'הסתר ▴'):(e?'Show ▾':'הצג ▾');
+  header.appendChild(titleSpan);
+  header.appendChild(toggleSpan);
+
+  const body=document.createElement('div');
+  body.style.cssText='margin-top:8px;'+(startOpen?'':'display:none;');
+  rows.forEach(r=>body.appendChild(r));
+
+  header.onclick=()=>{
+    const isOpen=body.style.display!=='none';
+    body.style.display=isOpen?'none':'';
+    toggleSpan.textContent=isOpen?(e?'Show ▾':'הצג ▾'):(e?'Hide ▴':'הסתר ▴');
+  };
+
+  wrap.appendChild(header);
+  wrap.appendChild(body);
+  return wrap;
+}
+
 function renderStatementReview(parsed){
   const e=lang==='en';
   document.getElementById('lbl_statementTitle').textContent=e?'📄 Import Statement':'📄 ייבוא דף חיוב';
-  document.getElementById('lbl_statementSub').textContent=e
-    ?`Found ${parsed.length} transactions. Review and confirm categories before importing.`
-    :`נמצאו ${parsed.length} עסקאות. בדוק ואשר קטגוריות לפני הייבוא.`;
-  document.getElementById('btn_statementConfirm').textContent=e?`Import selected`:'ייבא נבחרים';
+  document.getElementById('btn_statementConfirm').textContent=e?'Import':'ייבא';
   document.getElementById('btn_statementCancel').textContent=e?'Cancel':'ביטול';
 
   const list=document.getElementById('statementList');
   list.style.display='block';
   list.innerHTML='';
-  const allCats=getAllCats();
+
+  const merchantMap=getMerchantMap();
+  const dupItems=[],knownItems=[],unknownItems=[];
 
   parsed.forEach((p,idx)=>{
     const dup=findDuplicateExpense(p);
-    const suggestedCat=suggestCategory(p);
-    const row=document.createElement('div');
-    row.className='stmt-row'+(dup?' dup':(!suggestedCat?'':''));
-    row.dataset.idx=idx;
-    row.dataset.included=dup?'0':'1'; // exclude likely-duplicates by default
-
-    const top=document.createElement('div');
-    top.className='stmt-row-top';
-
-    const check=document.createElement('div');
-    check.className='stmt-check'+(dup?'':' on');
-    check.textContent=dup?'':'✓';
-    check.onclick=()=>{
-      const isOn=row.dataset.included==='1';
-      row.dataset.included=isOn?'0':'1';
-      check.classList.toggle('on',!isOn);
-      check.textContent=isOn?'':'✓';
-      row.classList.toggle('excluded',isOn);
-    };
-    if(dup)row.classList.add('excluded');
-
-    const merchantInput=document.createElement('input');
-    merchantInput.type='text';
-    merchantInput.className='stmt-merchant';
-    merchantInput.value=p.merchant;
-
-    const amountSpan=document.createElement('div');
-    amountSpan.className='stmt-amount';
-    amountSpan.style.color=p.amount<0?'var(--green)':'var(--text)';
-    amountSpan.textContent=(p.amount<0?'+':'')+fmt(Math.abs(p.amount));
-
-    top.appendChild(check);
-    top.appendChild(merchantInput);
-    top.appendChild(amountSpan);
-
-    const bottom=document.createElement('div');
-    bottom.className='stmt-row-bottom';
-
-    const dateSpan=document.createElement('span');
-    const dd=String(p.date.getDate()).padStart(2,'0');
-    const mm=String(p.date.getMonth()+1).padStart(2,'0');
-    dateSpan.textContent=dd+'/'+mm+'/'+p.date.getFullYear();
-
-    const catSelect=document.createElement('select');
-    catSelect.className='stmt-cat-select';
-    catSelect.innerHTML=`<option value="">${e?'Choose category...':'בחר קטגוריה...'}</option>`
-      +allCats.map(c=>`<option value="${c.id}"${c.id===suggestedCat?' selected':''}>${c.icon} ${c.name}</option>`).join('');
-
-    bottom.appendChild(dateSpan);
-    bottom.appendChild(catSelect);
-
-    if(dup){
-      const badge=document.createElement('span');
-      badge.className='stmt-dup-badge';
-      badge.textContent=e?'possible duplicate':'כפילות אפשרית';
-      bottom.appendChild(badge);
-    }
-    if(p.isForeign){
-      const fxBadge=document.createElement('span');
-      fxBadge.style.cssText='background:rgba(59,130,246,0.15);color:var(--blue);padding:2px 6px;border-radius:6px;font-size:10px;font-weight:700;';
-      fxBadge.textContent=(p.originalCurrency||'')+p.originalAmount;
-      bottom.appendChild(fxBadge);
-    }
-
-    row.appendChild(top);
-    row.appendChild(bottom);
-    list.appendChild(row);
+    if(dup){dupItems.push({p,idx});return;}
+    const mapped=merchantMap[normalizeMerchant(p.merchant)];
+    if(mapped){knownItems.push({p,idx,mapped});}
+    else{unknownItems.push({p,idx});}
   });
+
+  document.getElementById('lbl_statementSub').textContent=e
+    ?`${knownItems.length} recognized, ${unknownItems.length} new, ${dupItems.length} possible duplicates`
+    :`${knownItems.length} מוכרות, ${unknownItems.length} חדשות, ${dupItems.length} כפילויות אפשריות`;
+
+  // New merchants — needs input, shown expanded
+  if(unknownItems.length){
+    const title=document.createElement('div');
+    title.className='section-title';
+    title.style.cssText='padding:0 2px 8px;font-size:12px;';
+    title.textContent=e?`🆕 New — choose a category (${unknownItems.length})`:`🆕 חדשות — בחר קטגוריה (${unknownItems.length})`;
+    list.appendChild(title);
+    unknownItems.forEach(({p,idx})=>{
+      list.appendChild(buildStmtRow(p,idx,{defaultIncluded:true}));
+    });
+  }
+
+  // Known merchants — auto-recognized, collapsed
+  if(knownItems.length){
+    const rows=knownItems.map(({p,idx,mapped})=>buildStmtRow(p,idx,{defaultIncluded:true,presetCat:mapped}));
+    list.appendChild(buildCollapsibleSection(
+      e?`✅ Recognized — will auto-import (${knownItems.length})`:`✅ מוכרות — ייבוא אוטומטי (${knownItems.length})`,
+      'var(--green)',rows,false
+    ));
+  }
+
+  // Possible duplicates — collapsed, excluded by default
+  if(dupItems.length){
+    const rows=dupItems.map(({p,idx})=>buildStmtRow(p,idx,{defaultIncluded:false,dup:true}));
+    list.appendChild(buildCollapsibleSection(
+      e?`⚠️ Possible duplicates — skipped (${dupItems.length})`:`⚠️ כפילויות אפשריות — דולגו (${dupItems.length})`,
+      'var(--orange)',rows,false
+    ));
+  }
 
   document.getElementById('btn_statementConfirm').style.display='block';
 }
 
 function confirmStatementImport(){
   const e=lang==='en';
-  const rows=[...document.getElementById('statementList').children];
+  const rows=[...document.querySelectorAll('#statementList .stmt-row')];
   const data=getData();
   const merchantMap=getMerchantMap();
   let count=0;
