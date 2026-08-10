@@ -4035,14 +4035,18 @@ const STATEMENT_SECTORS=[
   {label:'תקשורת',       cat:'phone'},
   {label:'פנאי/ספורט',   cat:'gym'},
   {label:'ביטוח',        cat:'insurance_life'},
-  {label:'דלק',          cat:null}, // fuel — but could be highways, ask
+  {label:'דלק',          cat:'fuel'},
   {label:'תרבות',        cat:'attractions'},
   {label:'מחשבים',       cat:null},
   {label:'פארמה',        cat:'pharmacy'},
+  {label:'רהיטים',       cat:'furniture'},
+  {label:'הלבשה',        cat:'clothes'},
+  {label:'מעדניות',      cat:'supermarket'},
+  {label:'שרות רפואי',   cat:'medical1'},
+  {label:'ספרים/דיסק',   cat:'pubs'},
+  {label:'שיווק ישיר',   cat:null},
   {label:'שונות',        cat:null},
 ];
-// Fix: fuel sector actually maps to fuel category id
-STATEMENT_SECTORS.find(s=>s.label==='דלק').cat='fuel';
 
 const STATEMENT_CARD_TOKENS=['לא הוצג','ה.קבע','תש.נייד','ש.אלחוט'];
 
@@ -4129,45 +4133,70 @@ function parseForeignSection(lines){
   const domesticStart=fullText.indexOf('עסקות שחויבו',foreignStart);
   let blob=domesticStart>foreignStart?fullText.slice(foreignStart,domesticStart):fullText.slice(foreignStart);
 
-  blob=blob.replace(/\*\*[\s\S]*?סך הנחה\s*:\s*[\d.,]+\s*₪/g,' ');
+  // Only strip REAL fee footnotes (start with **פ.עמלה) — the column header also
+  // contains a bare "**" reference mark which must NOT trigger this strip.
+  blob=blob.replace(/\*\*\s*פ\s*\.?\s*עמלה[\s\S]*?סך הנחה\s*:\s*[\d.,]+\s*₪/g,' ');
   blob=blob.replace(/סה"כ חיוב לתאריך\s*\d{2}\/\d{2}\/\d{2}\s*-?[\d,]+\.\d{2}/g,' ');
   blob=blob.replace(/סה"כ עמלות[^₪]*₪/g,' ');
 
-  const NUM_SIG_RE=/(-?[\d,]+\.\d{2})\s+([\d,]+\.\d{2})\s+([\d.]+)\s+(\d{2}\/\d{2}\/\d{2})\s+([\d,]+\.\d{2})\s*([₪$€£])|(-?[\d,]+\.\d{2})\s*([₪$€£])\s*(-?[\d,]+\.\d{2})/g;
+  // Shape2 (currency conversion): CURRENCY origAmount exchangeDate rate commission chargeILS
+  // Shape1 (no conversion): origAmount ₪ chargeILS
+  const NUM_SIG_RE=/([₪$€£])\s*([\d,]+\.\d{2})\s+\d{2}\/\d{2}\/\d{2}\s+[\d.]+\s+[\d,]+\.\d{2}\s+(-?[\d,]+\.\d{2})|(-?[\d,]+\.\d{2})\s*([₪$€£])\s*(-?[\d,]+\.\d{2})/g;
 
   const matches=[...blob.matchAll(NUM_SIG_RE)];
   const results=[];
   let cursor=0;
+
+  const cleanMerchant=text=>{
+    text=text.replace(/\d{2}\/\d{2}\/\d{2}/g,' ');
+    let toks=text.split(' ').filter(tok=>{
+      if(tok.length===0)return false;
+      if(/^[\u0590-\u05FF]$/.test(tok))return false;
+      if(/^-+$/.test(tok))return false;
+      return true;
+    });
+    toks=toks.filter((w,i)=>w!==toks[i-1]);
+    return toks.join(' ').trim();
+  };
+
   matches.forEach(m=>{
     const chunk=blob.slice(cursor,m.index);
     cursor=m.index+m[0].length;
 
-    let chargeILS,originalAmount,originalCurrency;
-    if(m[1]!==undefined){
-      chargeILS=parseFloat(m[1].replace(/,/g,''));
-      originalAmount=parseFloat(m[5].replace(/,/g,''));
-      originalCurrency=m[6];
-    } else {
-      originalAmount=parseFloat(m[7].replace(/,/g,''));
-      originalCurrency=m[8];
-      chargeILS=parseFloat(m[9].replace(/,/g,''));
+    // Find the LAST date in this chunk — marks the start of THIS transaction's own text.
+    // Anything before that belongs to the PREVIOUS transaction (city/continuation line).
+    const datesInChunk=[...chunk.matchAll(/\d{2}\/\d{2}\/\d{2}/g)];
+    let ownTextStart=0;
+    if(datesInChunk.length){
+      ownTextStart=datesInChunk[datesInChunk.length-1].index;
+    }
+    const continuationForPrev=chunk.slice(0,ownTextStart);
+    const ownChunk=chunk.slice(ownTextStart);
+
+    if(results.length){
+      const contText=cleanMerchant(continuationForPrev);
+      if(contText)results[results.length-1].merchant=normalizeMerchant(results[results.length-1].merchant+' '+contText);
     }
 
-    const dateMatch=chunk.match(/(\d{2})\/(\d{2})\/(\d{2})/);
+    let chargeILS,originalAmount,originalCurrency;
+    if(m[1]!==undefined){
+      originalCurrency=m[1];
+      originalAmount=parseFloat(m[2].replace(/,/g,''));
+      chargeILS=parseFloat(m[3].replace(/,/g,''));
+    } else {
+      originalAmount=parseFloat(m[4].replace(/,/g,''));
+      originalCurrency=m[5];
+      chargeILS=parseFloat(m[6].replace(/,/g,''));
+    }
+
+    const dateMatch=ownChunk.match(/(\d{2})\/(\d{2})\/(\d{2})/);
     let txDate=null;
     if(dateMatch){
       const year=2000+parseInt(dateMatch[3],10),month=parseInt(dateMatch[2],10),day=parseInt(dateMatch[1],10);
       txDate=new Date(year,month-1,day);
     }
 
-    let merchantText=chunk.replace(/\d{2}\/\d{2}\/\d{2}/g,' ');
-    merchantText=merchantText.split(' ').filter(tok=>{
-      if(tok.length===0)return false;
-      if(/^[\u0590-\u05FF]$/.test(tok))return false;
-      return true;
-    }).join(' ').replace(/\s+/g,' ').trim();
-    const words=merchantText.split(' ');
-    merchantText=words.filter((w,i)=>w!==words[i-1]).join(' ');
+    const merchantText=cleanMerchant(ownChunk);
 
     if(txDate){
       results.push({
