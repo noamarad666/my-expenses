@@ -4534,6 +4534,31 @@ function confirmStatementImport(){
   const merchantMap=getMerchantMap();
   let count=0;
 
+  // First pass: check for checked rows missing a category — block the whole import if any exist,
+  // since silently dropping a transaction is worse than making the user pick a category.
+  const missingCategoryRows=rows.filter(row=>{
+    if(row.dataset.included!=='1')return false;
+    const catSelect=row.querySelector('.stmt-cat-select');
+    return !catSelect || !catSelect.value;
+  });
+  if(missingCategoryRows.length){
+    missingCategoryRows.forEach(row=>{
+      // Auto-expand any collapsed parent section this row is hiding inside
+      let el=row.parentElement;
+      while(el){
+        if(el.style && el.style.display==='none')el.style.display='';
+        el=el.parentElement;
+      }
+      row.style.borderColor='var(--red)';
+      row.style.borderWidth='2px';
+      row.scrollIntoView({behavior:'smooth',block:'center'});
+    });
+    showToast(e
+      ?`Choose a category for ${missingCategoryRows.length} highlighted transaction(s) before importing`
+      :`בחר קטגוריה ל-${missingCategoryRows.length} עסקאות מודגשות לפני הייבוא`,true);
+    return;
+  }
+
   rows.forEach(row=>{
     if(row.dataset.included!=='1')return;
     const idx=parseInt(row.dataset.idx);
@@ -4543,7 +4568,6 @@ function confirmStatementImport(){
     const catSelect=row.querySelector('.stmt-cat-select');
     const merchant=merchantInput?merchantInput.value.trim():p.merchant;
     const catId=catSelect?catSelect.value:'';
-    if(!catId)return; // skip rows without a category chosen
 
     const key=getMonthKey(p.date);
     if(!data[key])data[key]=[];
