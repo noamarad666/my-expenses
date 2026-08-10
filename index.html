@@ -1980,25 +1980,30 @@ function renderInsights(){
   if(!container)return;
   const insights=[];
 
-  // "Viewed month" = currentDate. If viewing current month, use it as-is.
-  // Baseline = 5 months before the viewed month.
-  const viewedKey=getMonthKey(currentDate);
-  const viewedLabel=monthKeyToLabel(viewedKey);
+  // "Viewed month" = currentDate, UNLESS that's the real-world current (still in-progress) month,
+  // in which case fall back to the last completed month so insights aren't based on partial data.
+  const rawViewedKey=getMonthKey(currentDate);
   const nowKey=getMonthKey(new Date());
-  const isCurrentMonth=viewedKey===nowKey;
+  const isCurrentMonth=rawViewedKey===nowKey;
+  const effectiveDate=isCurrentMonth
+    ? new Date(currentDate.getFullYear(),currentDate.getMonth()-1,1)
+    : currentDate;
+  const viewedKey=getMonthKey(effectiveDate);
+  const viewedLabel=monthKeyToLabel(viewedKey);
 
   // Get viewed month data
   const viewedSpent=getTotalSpentInKey(viewedKey,true);
   const savedDate=currentDate;
+  currentDate=effectiveDate;
   const viewedNet=getNet();
   currentDate=savedDate;
   const viewedSaved=viewedNet>0?viewedNet-viewedSpent:null;
   const viewedRate=viewedNet>0?Math.round(((viewedNet-viewedSpent)/viewedNet)*100):null;
 
-  // Baseline: 5 months before viewed month
+  // Baseline: 5 months before the viewed (effective) month
   const baseline=[];
   for(let i=1;i<=5;i++){
-    const d=new Date(currentDate.getFullYear(),currentDate.getMonth()-i,1);
+    const d=new Date(effectiveDate.getFullYear(),effectiveDate.getMonth()-i,1);
     const key=getMonthKey(d);
     const spent=getTotalSpentInKey(key,true);
     currentDate=d;
