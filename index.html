@@ -450,6 +450,11 @@
     </select>
     <button class="btn-add-past" id="btn_addPast" onclick="openAddPastModal()">+ הוצאה ישנה</button>
   </div>
+  <div style="padding:0 16px 10px;position:relative;">
+    <input type="text" id="historySearchInput" oninput="renderHistoryView()" placeholder="חיפוש לפי שם או הערה..." style="width:100%;background:var(--surface2);border:1px solid var(--border);border-radius:10px;color:var(--text);font-family:'Heebo',sans-serif;font-size:14px;padding:9px 34px 9px 12px;outline:none;">
+    <span style="position:absolute;right:26px;top:50%;transform:translateY(-50%);color:var(--text-muted);font-size:14px;pointer-events:none;">🔍</span>
+    <button id="btn_clearHistorySearch" onclick="document.getElementById('historySearchInput').value='';renderHistoryView();" style="display:none;position:absolute;left:24px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--text-muted);font-size:16px;cursor:pointer;">✕</button>
+  </div>
   <input type="file" id="statementFileInput" accept="application/pdf" style="display:none;" onchange="handleStatementFile(this.files[0])">
   <div id="historyList"></div>
 </div>
@@ -876,6 +881,7 @@ function renderStaticUI(){
   const lbForeign=document.getElementById('lbl_foreignSection');if(lbForeign)lbForeign.textContent=e?'💱 Foreign Accounts':'💱 חשבונות בחו"ל';
   const lbForeignSub=document.getElementById('lbl_foreignSub');if(lbForeignSub)lbForeignSub.textContent=e?'Add savings accounts in foreign currency. Balance is converted to ₪ at daily rates.':'הוסף חשבונות חיסכון במטבע זר. היתרה תומר לשקלים בשערי יום.';
   const btnAddForeign=document.getElementById('btn_addForeign');if(btnAddForeign)btnAddForeign.textContent=e?'+ Add Account':'+ הוסף חשבון';
+  const searchInput=document.getElementById('historySearchInput');if(searchInput)searchInput.placeholder=e?'Search by name or note...':'חיפוש לפי שם או הערה...';
   const btnImport=document.getElementById('btn_importStatement');if(btnImport)btnImport.textContent=e?'📄 Import Statement (PDF)':'📄 ייבוא דף חיוב (PDF)';
   const lbNicoleHint=document.getElementById('lbl_nicoleHint');if(lbNicoleHint)lbNicoleHint.textContent=e?'Tap ✏️ to change the name of the person or group. Tap Hide to remove this section from the Saving tab entirely.':'לחץ ✏️ לשינוי שם האדם או הקבוצה. לחץ הסתר כדי להסיר את החלק הזה מלשונית החסכונות לחלוטין.';
   const smiSharedSub=document.getElementById('smi_shared_sub');if(smiSharedSub)smiSharedSub.textContent=e?'Choose categories to split in half with a shared person':'בחר קטגוריות לחלוקה שווה עם אדם נוסף';
@@ -1569,7 +1575,10 @@ function showCatPeek(catId, x, y){
       const d=new Date(tx.date);
       const dateStr=d.getDate()+'/'+(d.getMonth()+1);
       const note=tx.note?` <span style="color:var(--text-muted);font-weight:400">· ${tx.note}</span>`:'';
-      return `<div class="cat-peek-row"><span class="cat-peek-date">${dateStr}${note}</span><span class="cat-peek-amount ${tx.amount<0?'':''}${tx.amount<0?'style="color:var(--green)"':''}">${fmt(Math.abs(tx.amount))}</span></div>`;
+      const isRefund=tx.amount<0;
+      const amountStr=(isRefund?'+':'')+fmt(Math.abs(tx.amount));
+      const colorStyle=isRefund?'style="color:var(--green)"':'';
+      return `<div class="cat-peek-row"><span class="cat-peek-date">${dateStr}${note}</span><span class="cat-peek-amount" ${colorStyle}>${amountStr}</span></div>`;
     }).join('');
   }
   const peek=document.getElementById('catPeek');
@@ -1589,21 +1598,37 @@ function hideCatPeek(){
 // ── History ──────────────────────────────────────────────
 function renderHistoryView(){
   const filterEl=document.getElementById('historyFilter');
+  const searchInput=document.getElementById('historySearchInput');
+  const searchTerm=(searchInput?searchInput.value:'').trim().toLowerCase();
+  const clearBtn=document.getElementById('btn_clearHistorySearch');
+  if(clearBtn)clearBtn.style.display=searchTerm?'block':'none';
+
   const allKeys=getAllMonthKeys();
   const currentKey=getMonthKey(currentDate);
   const allWithCurrent=allKeys.includes(currentKey)?allKeys:[currentKey,...allKeys];
   const prevVal=filterEl.value;
   filterEl.innerHTML=`<option value="all">${lang==='en'?'All History':'כל ההיסטוריה'}</option>`+
     allWithCurrent.map(k=>`<option value="${k}"${k===prevVal?' selected':''}>${keyToLabel(k)}</option>`).join('');
+  filterEl.disabled=!!searchTerm;
+
   const data=getData(), container=document.getElementById('historyList');
   const selected=filterEl.value;
-  let keysToShow=selected==='all'?allWithCurrent:[selected];
+  // When searching, always search across ALL months regardless of the month filter
+  let keysToShow=searchTerm?allWithCurrent:(selected==='all'?allWithCurrent:[selected]);
   if(!keysToShow.length){container.innerHTML=`<div class="empty-state"><div class="emoji">📭</div><p>${lang==='en'?'No expenses yet':'אין הוצאות עדיין'}</p></div>`;return;}
   let html='',total=0;
   keysToShow.forEach(key=>{
-    const txs=(data[key]||[]).slice().reverse();
+    let txs=(data[key]||[]).slice().reverse();
+    if(searchTerm){
+      txs=txs.filter(tx=>{
+        const cat=getAllCats().find(c=>c.id===tx.catId);
+        const catName=cat?cat.name.toLowerCase():'';
+        const note=(tx.note||'').toLowerCase();
+        return catName.includes(searchTerm)||note.includes(searchTerm);
+      });
+    }
     if(!txs.length)return;
-    if(selected==='all')html+=`<div class="month-divider">📅 ${keyToLabel(key)}</div>`;
+    if(searchTerm||selected==='all')html+=`<div class="month-divider">📅 ${keyToLabel(key)}</div>`;
     txs.forEach(tx=>{
       total++;
       const cat=getAllCats().find(c=>c.id===tx.catId), d=new Date(tx.date);
@@ -1615,6 +1640,10 @@ function renderHistoryView(){
         <div style="display:flex;flex-direction:column;gap:2px;"><button class="tx-delete" onclick="editExpense('${tx.id}','${key}')" style="color:var(--amber);font-size:13px;">✏️</button><button class="tx-delete" onclick="deleteExpense('${tx.id}','${key}')">✕</button></div></div>`;
     });
   });
+  if(searchTerm&&total===0){
+    container.innerHTML=`<div class="empty-state"><div class="emoji">🔍</div><p>${lang==='en'?'No matches found':'לא נמצאו תוצאות'}</p></div>`;
+    return;
+  }
   container.innerHTML=total?html:`<div class="empty-state"><div class="emoji">📭</div><p>${lang==='en'?'No expenses':'אין הוצאות'}</p></div>`;
 }
 
@@ -3689,8 +3718,16 @@ function buildCatPicker(){
 function selectCatInPicker(catId){
   selectedCatId=catId;
   const cat=getAllCats().find(c=>c.id===catId);
-  document.getElementById('selectedCatDisplay').innerHTML=`${cat.icon} ${cat.name}`;
-  document.getElementById('selectedCatDisplay').style.display='flex';
+  const catDisplay=document.getElementById('selectedCatDisplay');
+  catDisplay.innerHTML=`<span style="flex:1">${cat.icon} ${cat.name}</span><span style="color:var(--amber);font-size:12px;font-weight:600;">${lang==='en'?'Change ›':'שנה ›'}</span>`;
+  catDisplay.style.display='flex';
+  catDisplay.style.cursor='pointer';
+  catDisplay.onclick=()=>{
+    catDisplay.style.display='none';
+    document.getElementById('amountSection').style.display='none';
+    document.getElementById('catPickerSection').style.display='block';
+    buildCatPicker();
+  };
   document.getElementById('catPickerSection').style.display='none';
   document.getElementById('amountSection').style.display='block';
   if(isPastExpense)document.getElementById('monthPickerRow').style.display='block';
@@ -3735,8 +3772,16 @@ function editExpense(id, key){
   resetCadMode();
   document.getElementById('modalTitle').textContent=lang==='en'?'Edit Expense':'עריכת הוצאה';
   const cat=getAllCats().find(c=>c.id===tx.catId);
-  document.getElementById('selectedCatDisplay').innerHTML=`${cat?cat.icon+' '+cat.name:tx.catId}`;
-  document.getElementById('selectedCatDisplay').style.display='flex';
+  const catDisplay=document.getElementById('selectedCatDisplay');
+  catDisplay.innerHTML=`<span style="flex:1">${cat?cat.icon+' '+cat.name:tx.catId}</span><span style="color:var(--amber);font-size:12px;font-weight:600;">${lang==='en'?'Change ›':'שנה ›'}</span>`;
+  catDisplay.style.display='flex';
+  catDisplay.style.cursor='pointer';
+  catDisplay.onclick=()=>{
+    catDisplay.style.display='none';
+    document.getElementById('amountSection').style.display='none';
+    document.getElementById('catPickerSection').style.display='block';
+    buildCatPicker();
+  };
   document.getElementById('amountSection').style.display='block';
   document.getElementById('catPickerSection').style.display='none';
   document.getElementById('amountInput').value=Math.abs(tx.amount);
