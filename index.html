@@ -4097,6 +4097,11 @@ function parseDomesticLine(line){
   }
   if(!merchant)merchant=merchantAndSector;
 
+  // Check for installment marker (תשלום X מתוך Y) in trailing text after the amounts
+  const lastNumEnd=nums[nums.length-1].index+nums[nums.length-1][0].length;
+  const trailing=rest.slice(lastNumEnd);
+  const isInstallment=/תשלום/.test(trailing);
+
   const year=2000+parseInt(yy,10);
   const month=parseInt(mm,10);
   const day=parseInt(dd,10);
@@ -4107,18 +4112,16 @@ function parseDomesticLine(line){
     merchant:normalizeMerchant(merchant),
     sectorLabel,
     amount:Math.round(amount2*100)/100,
+    isInstallment,
   };
 }
 
 function parseForeignSection(lines){
-  let blob='';
-  let inForeign=false;
-  lines.forEach(line=>{
-    if(line.includes('רכישות בחו')){inForeign=true;return;}
-    if(line.includes('עסקות שחויבו')||line.includes('מסגרת הכרטיס')){inForeign=false;return;}
-    if(!inForeign)return;
-    blob+=' '+line;
-  });
+  const fullText=lines.join(' ');
+  const foreignStart=fullText.indexOf('רכישות בחו');
+  if(foreignStart<0)return [];
+  const domesticStart=fullText.indexOf('עסקות שחויבו',foreignStart);
+  let blob=domesticStart>foreignStart?fullText.slice(foreignStart,domesticStart):fullText.slice(foreignStart);
 
   blob=blob.replace(/\*\*[\s\S]*?סך הנחה\s*:\s*[\d.,]+\s*₪/g,' ');
   blob=blob.replace(/סה"כ חיוב לתאריך\s*\d{2}\/\d{2}\/\d{2}\s*-?[\d,]+\.\d{2}/g,' ');
@@ -4176,6 +4179,21 @@ function parseForeignSection(lines){
   return results;
 }
 
+function findStatementCutoffMonth(lines){
+  for(const line of lines){
+    if(line.includes('פרוט פעולותיך')){
+      const m=line.match(/(\d{2})\/(\d{2})\/(\d{2})/);
+      if(m){
+        let month=parseInt(m[2],10),year=2000+parseInt(m[3],10);
+        month-=1;
+        if(month<1){month=12;year-=1;}
+        return {year,month};
+      }
+    }
+  }
+  return null;
+}
+
 function parseStatementText(lines){
   const results=[];
   let inDomestic=false;
@@ -4186,6 +4204,20 @@ function parseStatementText(lines){
     const parsed=parseDomesticLine(line);
     if(parsed)results.push(parsed);
   });
+
+  // Installment payments (תשלום X מתוך Y) always show the ORIGINAL purchase date,
+  // even though this specific installment is billed in the current statement's month.
+  // Re-date them to the statement's actual billing month so they land correctly.
+  const cutoff=findStatementCutoffMonth(lines);
+  if(cutoff){
+    results.forEach(r=>{
+      if(r.isInstallment){
+        r.originalDate=r.date;
+        r.date=new Date(cutoff.year,cutoff.month-1,15);
+      }
+    });
+  }
+
   const foreignResults=parseForeignSection(lines);
   // Merge, sorted by date
   return [...results,...foreignResults].sort((a,b)=>a.date-b.date);
@@ -4325,6 +4357,13 @@ function buildStmtRow(p, idx, opts){
     fxBadge.style.cssText='background:rgba(59,130,246,0.15);color:var(--blue);padding:2px 6px;border-radius:6px;font-size:10px;font-weight:700;';
     fxBadge.textContent=(p.originalCurrency||'')+p.originalAmount;
     bottom.appendChild(fxBadge);
+  }
+  if(p.isInstallment){
+    const e2=lang==='en';
+    const instBadge=document.createElement('span');
+    instBadge.style.cssText='background:rgba(139,92,246,0.15);color:var(--purple);padding:2px 6px;border-radius:6px;font-size:10px;font-weight:700;';
+    instBadge.textContent=e2?'installment':'תשלום';
+    bottom.appendChild(instBadge);
   }
 
   row.appendChild(top);
