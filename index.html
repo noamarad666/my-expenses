@@ -1815,6 +1815,59 @@ function renderTopCatsCard(){
 }
 
 
+function getNicoleOneTimeData(){return ls('nicole_onetime',{});}
+function saveNicoleOneTimeData(d){lsSet('nicole_onetime',d);}
+function getNicoleOneTimeForKey(key){return getNicoleOneTimeData()[key]||[];}
+
+function removeNicoleOneTime(key,idx){
+  const d=getNicoleOneTimeData();
+  if(d[key]){d[key].splice(idx,1); if(!d[key].length)delete d[key];}
+  saveNicoleOneTimeData(d);
+  renderSavingView();
+}
+
+function openNicoleOneTimeModal(){
+  const e=lang==='en';
+  const viewKey=getMonthKey(currentDate);
+  const modal=document.createElement('div');
+  modal.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,0.7);z-index:500;display:flex;align-items:flex-end;justify-content:center;';
+  const box=document.createElement('div');
+  box.style.cssText='background:var(--surface);border-radius:20px 20px 0 0;padding:24px 20px 40px;width:100%;max-width:430px;max-height:80vh;overflow-y:auto;';
+
+  const allCats=getAllCats();
+  box.innerHTML=`
+    <div style="width:40px;height:4px;background:var(--border);border-radius:2px;margin:0 auto 16px;"></div>
+    <h3 style="margin-bottom:4px;font-size:16px;">${e?'One-time shared category':'קטגוריה חד-פעמית לשיתוף'}</h3>
+    <p style="font-size:12px;color:var(--text-muted);margin-bottom:16px;">${e?'Applies only to '+keyToLabel(viewKey):'חל רק על '+keyToLabel(viewKey)}</p>
+    <div class="form-label">${e?'Category':'קטגוריה'}</div>
+    <select id="oneTimeCatSelect" class="form-input" style="margin-bottom:14px;">
+      <option value="">${e?'Choose category...':'בחר קטגוריה...'}</option>
+      ${allCats.map(c=>`<option value="${c.id}">${c.icon} ${c.name}</option>`).join('')}
+    </select>
+    <div class="form-label">${e?'Split %':'% חלוקה'}</div>
+    <input type="number" id="oneTimePct" class="form-input" value="50" min="1" max="100" style="margin-bottom:20px;">
+    <button onclick="confirmNicoleOneTime()" class="btn-primary" style="margin-bottom:8px;">${e?'Add':'הוסף'}</button>
+    <button onclick="this.closest('[data-onetimemodal]').remove()" class="btn-secondary">${e?'Cancel':'ביטול'}</button>
+  `;
+  modal.dataset.onetimemodal='1';
+  modal.appendChild(box);
+  document.body.appendChild(modal);
+  modal.addEventListener('click',ev=>{if(ev.target===modal)modal.remove();});
+}
+
+function confirmNicoleOneTime(){
+  const catId=document.getElementById('oneTimeCatSelect').value;
+  const pct=parseInt(document.getElementById('oneTimePct').value)||50;
+  if(!catId)return;
+  const viewKey=getMonthKey(currentDate);
+  const d=getNicoleOneTimeData();
+  if(!d[viewKey])d[viewKey]=[];
+  d[viewKey].push({catId,pct:Math.min(100,Math.max(1,pct))});
+  saveNicoleOneTimeData(d);
+  document.querySelector('[data-onetimemodal]')?.remove();
+  renderSavingView();
+}
+
 function renderSavingView(){
   renderWealthCard();
   renderWealthChart();
@@ -1822,6 +1875,7 @@ function renderSavingView(){
   const viewKey=getMonthKey(currentDate), viewLabel=keyToLabel(viewKey);
   const nicole=getNicole();
   const sharedCats=nicole.sharedCats||[];
+  const oneTimeEntries=getNicoleOneTimeForKey(viewKey);
   const e=lang==='en';
 
   const sharedRows=sharedCats.map(entry=>{
@@ -1829,22 +1883,38 @@ function renderSavingView(){
     const cat=getAllCats().find(c=>c.id===catId);
     const spent=getCatSpentInKey(catId,viewKey);
     const share=spent*(pct/100);
-    return {catId,cat,spent,pct,share};
+    return {catId,cat,spent,pct,share,isOneTime:false};
   });
-  const nicoleTotal=sharedRows.reduce((s,r)=>s+r.share,0);
+  const oneTimeRows=oneTimeEntries.map((entry,idx)=>{
+    const cat=getAllCats().find(c=>c.id===entry.catId);
+    const spent=getCatSpentInKey(entry.catId,viewKey);
+    const share=spent*(entry.pct/100);
+    return {catId:entry.catId,cat,spent,pct:entry.pct,share,isOneTime:true,idx};
+  });
+  const allRows=[...sharedRows,...oneTimeRows];
+  const nicoleTotal=allRows.reduce((s,r)=>s+r.share,0);
 
   const container=document.getElementById('savingNicoleContent');
   if(!container)return;
   if(nicole.visible===false){container.innerHTML='';return;}
   container.innerHTML='<div class="nicole-card">'
-    +'<h3>💙 '+(nicole.name||'Nicole')+(e?'\'s Share':' — חלק')+'</h3>'
+    +'<div style="display:flex;align-items:center;justify-content:space-between;">'
+    +'<h3 style="margin:0;">💙 '+(nicole.name||'Nicole')+(e?'\'s Share':' — חלק')+'</h3>'
+    +'<button onclick="openNicoleOneTimeModal()" style="background:rgba(59,130,246,0.15);border:1px solid var(--blue);color:var(--blue);border-radius:8px;padding:4px 10px;font-family:Heebo,sans-serif;font-size:12px;font-weight:700;cursor:pointer;">+ '+(e?'One-time':'חד-פעמי')+'</button>'
+    +'</div>'
     +'<div class="nicole-amount">'+fmt(nicoleTotal)+'</div>'
     +'<div class="nicole-month-note">'+(e?'For '+viewLabel:'עבור '+viewLabel)+'</div>'
-    +(sharedRows.length===0?'<div style="font-size:12px;color:var(--text-muted);margin-top:8px;">'+(e?'No categories selected yet':'לא נבחרו קטגוריות עדיין')+'</div>':'')
+    +(allRows.length===0?'<div style="font-size:12px;color:var(--text-muted);margin-top:8px;">'+(e?'No categories selected yet':'לא נבחרו קטגוריות עדיין')+'</div>':'')
     +sharedRows.map(r=>{
       const pctLabel=r.pct===50?'½':(r.pct+'%');
       const name=r.cat?r.cat.icon+' '+r.cat.name:r.catId;
       return '<div class="analysis-row"><span class="name">'+name+' ('+pctLabel+')</span><span class="val">'+fmt(r.share)+'</span></div>';
+    }).join('')
+    +oneTimeRows.map(r=>{
+      const pctLabel=r.pct===50?'½':(r.pct+'%');
+      const name=r.cat?r.cat.icon+' '+r.cat.name:r.catId;
+      return '<div class="analysis-row"><span class="name">'+name+' ('+pctLabel+') <span style="color:var(--blue);font-size:10px;">'+(e?'one-time':'חד-פעמי')+'</span></span>'
+        +'<span class="val" style="display:flex;align-items:center;gap:6px;">'+fmt(r.share)+'<span onclick="removeNicoleOneTime(\''+viewKey+'\','+r.idx+')" style="color:var(--text-muted);cursor:pointer;font-size:13px;">✕</span></span></div>';
     }).join('')
     +'</div>';
 }
@@ -3402,6 +3472,7 @@ function getAllAppData(){
     wealth:      ls('wealth_data',{}),
     wealthNames: getWealthNames(),
     foreignAccounts: getForeignAccounts(),
+    nicoleOneTime: getNicoleOneTimeData(),
     foreignData: getForeignData(),
     hidden:      getHiddenCats(),
     custom:      getCustomCats(),
@@ -3454,6 +3525,7 @@ function importData(event){
       lsSet('wealth_data',data.wealth||{});
       if(data.wealthNames)lsSet('wealth_names',data.wealthNames);
       if(data.foreignAccounts)lsSet('foreign_accounts',data.foreignAccounts);
+      if(data.nicoleOneTime)lsSet('nicole_onetime',data.nicoleOneTime);
       if(data.foreignData)lsSet('foreign_data',data.foreignData);
       saveHiddenCats(data.hidden||[]);
       saveCustomCats(data.custom||{cats:[],groups:[]});
