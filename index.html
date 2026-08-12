@@ -385,21 +385,25 @@
   <div class="chart-card">
     <h3 id="lbl_spendTrendChart" style="color:var(--text)">📉 מגמת הוצאות — 12 חודשים אחרונים</h3>
     <canvas id="spendTrendChart" height="140"></canvas>
+    <div id="spendTrendAvg" style="text-align:center;font-size:12px;color:var(--text-muted);margin-top:8px;"></div>
   </div>
   <!-- Savings rate -->
   <div class="chart-card">
     <h3 id="lbl_savingsRateChart" style="color:var(--text)">💰 שיעור חיסכון — 12 חודשים אחרונים</h3>
     <canvas id="savingsRateChart" height="140"></canvas>
+    <div id="savingsRateAvg" style="text-align:center;font-size:12px;color:var(--text-muted);margin-top:8px;"></div>
   </div>
   <!-- Custom chart 1 -->
   <div class="chart-card">
     <h3 id="lbl_customChart1">🍽️ אוכל — שנה נוכחית</h3>
     <canvas id="customChart1" height="140"></canvas>
+    <div id="customChart1Avg" style="text-align:center;font-size:12px;color:var(--text-muted);margin-top:8px;"></div>
   </div>
   <!-- Custom chart 2 -->
   <div class="chart-card">
     <h3 id="lbl_customChart2">🚗 רכב — שנה נוכחית</h3>
     <canvas id="customChart2" height="140"></canvas>
+    <div id="customChart2Avg" style="text-align:center;font-size:12px;color:var(--text-muted);margin-top:8px;"></div>
   </div>
   <!-- Foreign account trend -->
   <div class="chart-card">
@@ -417,6 +421,7 @@
       <select id="netIncomeYear" onchange="renderNetIncomeChart()" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text);font-family:'Heebo',sans-serif;font-size:12px;padding:4px 8px;outline:none;"></select>
     </div>
     <canvas id="netIncomeChart" height="140"></canvas>
+    <div id="netIncomeAvg" style="text-align:center;font-size:12px;color:var(--text-muted);margin-top:8px;"></div>
   </div>
   <!-- Budget usage -->
   <div class="chart-card">
@@ -2032,6 +2037,10 @@ function renderCustomCharts(){
     const cats1=getAllCats().filter(c=>c.group===g1||c.group===GROUP_HE_TO_EN[g1]||c.group===GROUP_EN_TO_HE[g1]).map(c=>c.id);
     document.getElementById('lbl_customChart1').textContent=`${getGroupIcon(g1)} ${getGroupDisplayName(g1)} — ${yearLabel}`;
     customChart1=renderStackedBarChart('customChart1',customChart1,cats1,yr);
+    const monthTotals1=getYearMonthKeys(yr).map(k=>cats1.reduce((s,id)=>s+getCatSpentInKey(id,k),0)).filter(v=>v>0);
+    const avg1=monthTotals1.length?monthTotals1.reduce((s,v)=>s+v,0)/monthTotals1.length:0;
+    const avgEl1=document.getElementById('customChart1Avg');
+    if(avgEl1)avgEl1.textContent=avg1>0?(e?'Average: ':'ממוצע: ')+fmt(avg1):'';
   } else {
     if(card1)card1.style.display='none';
     if(customChart1){customChart1.destroy();customChart1=null;}
@@ -2045,6 +2054,10 @@ function renderCustomCharts(){
     const cats2=getAllCats().filter(c=>c.group===g2||c.group===GROUP_HE_TO_EN[g2]||c.group===GROUP_EN_TO_HE[g2]).map(c=>c.id);
     document.getElementById('lbl_customChart2').textContent=`${getGroupIcon(g2)} ${getGroupDisplayName(g2)} — ${yearLabel}`;
     customChart2=renderStackedBarChart('customChart2',customChart2,cats2,yr);
+    const monthTotals2=getYearMonthKeys(yr).map(k=>cats2.reduce((s,id)=>s+getCatSpentInKey(id,k),0)).filter(v=>v>0);
+    const avg2=monthTotals2.length?monthTotals2.reduce((s,v)=>s+v,0)/monthTotals2.length:0;
+    const avgEl2=document.getElementById('customChart2Avg');
+    if(avgEl2)avgEl2.textContent=avg2>0?(e?'Average: ':'ממוצע: ')+fmt(avg2):'';
   } else {
     if(card2)card2.style.display='none';
     if(customChart2){customChart2.destroy();customChart2=null;}
@@ -2317,6 +2330,12 @@ function renderSpendTrendChart(){
   }
   const labels=monthsArr.map(m=>m.label);
   const data=monthsArr.map(m=>getTotalSpentInKey(m.key,true));
+
+  const validData=data.filter(v=>v>0);
+  const avg=validData.length?validData.reduce((s,v)=>s+v,0)/validData.length:0;
+  const avgEl=document.getElementById('spendTrendAvg');
+  if(avgEl)avgEl.textContent=avg>0?(e?'Average: ':'ממוצע: ')+fmt(avg):'';
+
   if(spendTrendChart){spendTrendChart.destroy();spendTrendChart=null;}
   spendTrendChart=new Chart(canvas,{
     type:'line',
@@ -2368,6 +2387,12 @@ function renderSavingsRateChart(){
     if(net<=0)return null;
     return Math.round(((net-spent)/net)*100);
   });
+
+  const validRates=data.filter(v=>v!==null);
+  const avgRate=validRates.length?Math.round(validRates.reduce((s,v)=>s+v,0)/validRates.length):null;
+  const avgEl=document.getElementById('savingsRateAvg');
+  if(avgEl)avgEl.textContent=avgRate!==null?(e?'Average: ':'ממוצע: ')+avgRate+'%':'';
+
   if(savingsRateChart){savingsRateChart.destroy();savingsRateChart=null;}
   savingsRateChart=new Chart(canvas,{
     type:'line',
@@ -2655,6 +2680,11 @@ function renderNetIncomeChart(){
     return net>0?net:0;
   });
   currentDate=savedDate;
+
+  const validNetData=data.filter(v=>v>0);
+  const avgNet=validNetData.length?validNetData.reduce((s,v)=>s+v,0)/validNetData.length:0;
+  const avgEl=document.getElementById('netIncomeAvg');
+  if(avgEl)avgEl.textContent=avgNet>0?(e?'Average: ':'ממוצע: ')+fmt(avgNet):'';
 
   const title=selected==='all'?(e?'🔢 Net Income — All Time':'🔢 הכנסה נטו — כל הזמן'):(e?'🔢 Net Income — '+selected:'🔢 הכנסה נטו — '+selected);
   document.getElementById('lbl_netIncomeChart').textContent=title;
