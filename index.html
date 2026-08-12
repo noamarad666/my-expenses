@@ -2929,6 +2929,12 @@ function renderChartVisibilityPicker(){
 
 
 const PIE_COLORS=['#f59e0b','#3b82f6','#10b981','#ef4444','#8b5cf6','#f97316','#06b6d4','#84cc16','#ec4899','#a78bfa'];
+const PIE_CANONICAL_GROUPS=['Home','Food','Health','Insurances','Transportation','Communication','Spare Time','Money Transaction'];
+function getGroupColor(group){
+  const canonical=GROUP_HE_TO_EN[group]||group;
+  const idx=PIE_CANONICAL_GROUPS.indexOf(canonical);
+  return PIE_COLORS[(idx>=0?idx:PIE_CANONICAL_GROUPS.length)%PIE_COLORS.length];
+}
 function populatePieSelects(){
   const allKeys=getAllMonthKeys();
   if(!allKeys.length)return;
@@ -2959,7 +2965,7 @@ function renderPieCharts(){
     const pd=buildPieData(k);
     if(!pd.data.length){document.getElementById(`pieCanvas${i}`).closest('.pie-card').innerHTML=`<div class="pie-empty">${lang==='en'?'No data':'אין נתונים'}</div>`;return;}
     const ctx=document.getElementById(`pieCanvas${i}`).getContext('2d');
-    const colors=pd.labels.map((_,j)=>PIE_COLORS[j%PIE_COLORS.length]);
+    const colors=pd.labels.map(l=>getGroupColor(l));
     const total=pd.data.reduce((a,b)=>a+b,0);
     pieCharts[i]=new Chart(ctx,{type:'doughnut',
       data:{labels:pd.labels,datasets:[{data:pd.data,backgroundColor:colors,borderWidth:0,hoverOffset:4}]},
