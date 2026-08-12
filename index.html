@@ -1457,9 +1457,16 @@ function saveHiddenCats(h){lsSet('hidden_cats',h);}
 function isCatVisible(id){return !getHiddenCats().includes(id);}
 
 // Merge default CATEGORIES with custom ones
+function getCatNameOverrides(){return ls('cat_name_overrides',{});}
+function saveCatNameOverrides(o){lsSet('cat_name_overrides',o);}
+
 function getAllCats(){
   const custom=getCustomCats();
-  return [...getCATEGORIES(), ...custom.cats];
+  const overrides=getCatNameOverrides();
+  return [...getCATEGORIES(), ...custom.cats].map(c=>{
+    const key=c.id+'_'+lang;
+    return overrides[key]?{...c,name:overrides[key]}:c;
+  });
 }
 function getAllGroups(){
   const custom=getCustomCats();
@@ -3346,6 +3353,7 @@ function renderCategorySettings(){
       html+=`<div class="cat-settings-row">
         <div class="toggle ${visible?'on':''}" onclick="toggleCatVisibility('${cat.id}')">${visible?'✓':''}</div>
         <span class="cat-label">${cat.icon} ${cat.name}</span>
+        <button class="btn-icon" onclick="renameCat('${cat.id}','${cat.name.replace(/'/g,"\\'")}')" title="${lang==='en'?'Rename':'שנה שם'}" style="background:none;border:none;color:var(--text-muted);font-size:13px;cursor:pointer;padding:0 4px;">✏️</button>
         <input class="budget-inp" type="number" value="${b||''}" placeholder="₪" onchange="updateBudget('${cat.id}',this.value)">
         ${isCustomCat?`<button class="btn-del" onclick="deleteCustomCat('${cat.id}')">✕</button>`:'<span style="width:22px"></span>'}
       </div>`;
@@ -3354,6 +3362,28 @@ function renderCategorySettings(){
   }
   html+=`<button class="btn-add-group" onclick="addNewGroup()">＋ ${lang==='en'?'New Group':'קבוצה חדשה'}</button>`;
   document.getElementById('settingsList').innerHTML=html;
+}
+
+function renameCat(catId,currentName){
+  const isCustom=getCustomCats().cats.some(c=>c.id===catId);
+  openTextInput(lang==='en'?'New category name:':'שם קטגוריה חדש:', currentName, val=>{
+    if(!val.trim())return;
+    if(isCustom){
+      // Custom categories store their name directly
+      const d=getCustomCats();
+      const cat=d.cats.find(c=>c.id===catId);
+      if(cat)cat.name=val.trim();
+      saveCustomCats(d);
+    } else {
+      // Built-in categories use a per-language override
+      const overrides=getCatNameOverrides();
+      overrides[catId+'_'+lang]=val.trim();
+      saveCatNameOverrides(overrides);
+    }
+    renderCategorySettings();
+    renderBudgetView();
+    render();
+  });
 }
 
 function toggleCatVisibility(catId){
@@ -3503,6 +3533,7 @@ function getAllAppData(){
     wealthNames: getWealthNames(),
     foreignAccounts: getForeignAccounts(),
     nicoleOneTime: getNicoleOneTimeData(),
+    catNameOverrides: getCatNameOverrides(),
     foreignData: getForeignData(),
     hidden:      getHiddenCats(),
     custom:      getCustomCats(),
@@ -3556,6 +3587,7 @@ function importData(event){
       if(data.wealthNames)lsSet('wealth_names',data.wealthNames);
       if(data.foreignAccounts)lsSet('foreign_accounts',data.foreignAccounts);
       if(data.nicoleOneTime)lsSet('nicole_onetime',data.nicoleOneTime);
+      if(data.catNameOverrides)lsSet('cat_name_overrides',data.catNameOverrides);
       if(data.foreignData)lsSet('foreign_data',data.foreignData);
       saveHiddenCats(data.hidden||[]);
       saveCustomCats(data.custom||{cats:[],groups:[]});
