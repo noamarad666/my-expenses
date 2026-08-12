@@ -555,6 +555,15 @@
     <!-- CATBUDGET panel -->
     <div class="settings-panel" id="settingsPanelCatbudget">
       <button class="settings-back" onclick="openSettingsPanel('menu')">‹ <span id="lbl_backBtn6">חזרה</span></button>
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:10px 12px;margin-bottom:12px;background:var(--surface);border:1px solid var(--border);border-radius:12px;">
+        <div style="flex:1;">
+          <div id="lbl_netRefundsTitle" style="font-size:13px;font-weight:700;">💸 קזז זיכויים/החזרים מסך ההוצאות</div>
+          <div id="lbl_netRefundsSub" style="font-size:11px;color:var(--text-muted);margin-top:2px;">אם כבוי, "הוצאתי" מציג רק חיובים, ללא ניכוי זיכויים</div>
+        </div>
+        <div id="netRefundsToggle" onclick="toggleNetRefunds()" style="width:38px;height:22px;border-radius:11px;flex-shrink:0;position:relative;cursor:pointer;transition:background 0.2s;margin-right:10px;">
+          <div id="netRefundsKnob" style="width:16px;height:16px;border-radius:50%;background:#fff;position:absolute;top:2px;transition:left 0.2s;"></div>
+        </div>
+      </div>
       <div class="section-title" id="lbl_catsSection">קטגוריות — ✓ מוצג | תקציב | מחיקה</div>
       <div id="settingsList"></div>
       <div style="margin-top:14px;padding-top:14px;border-top:1px solid var(--border);">
@@ -867,6 +876,8 @@ function renderStaticUI(){
   const btnTIC=document.getElementById('btn_textInputCancel');if(btnTIC)btnTIC.textContent=e?'Cancel':'ביטול';
   const smiCatbudget=document.getElementById('smi_catbudget');if(smiCatbudget)smiCatbudget.textContent=e?'Categories & Budget':'קטגוריות ותקציב';
   const smiCatbudgetSub=document.getElementById('smi_catbudget_sub');if(smiCatbudgetSub)smiCatbudgetSub.textContent=e?'Visibility & per-category budget':'הצגה, תקציב לכל קטגוריה';
+  const lbNetRefTitle=document.getElementById('lbl_netRefundsTitle');if(lbNetRefTitle)lbNetRefTitle.textContent=e?'💸 Net refunds/credits against total spent':'💸 קזז זיכויים/החזרים מסך ההוצאות';
+  const lbNetRefSub=document.getElementById('lbl_netRefundsSub');if(lbNetRefSub)lbNetRefSub.textContent=e?'If off, "Spent" shows charges only, refunds not subtracted':'אם כבוי, "הוצאתי" מציג רק חיובים, ללא ניכוי זיכויים';
   const lbCats=document.getElementById('lbl_catsSection');if(lbCats)lbCats.textContent=e?'Tick ✓ for a subcategory to appear in Monthly view. Set a budget to color it: green = on track, orange = 80%+ used, red = over budget':'סמן ✓ כדי שהקטגוריה תופיע בלשונית החודשית. קבע תקציב לצביעה: ירוק = בסדר, כתום = 80%+, אדום = חריגה';
   renderCustomCharts();
   const smiSalary=document.getElementById('smi_salary');if(smiSalary)smiSalary.textContent=e?'Salary & Income':'משכורת והכנסות';
@@ -1459,9 +1470,15 @@ function getExpensesForKey(key){return getData()[key]||[];}
 function getMonthExpenses(){return getExpensesForKey(getMonthKey(currentDate));}
 function getCatSpentInKey(catId,key){return getExpensesForKey(key).filter(t=>t.catId===catId).reduce((s,t)=>s+t.amount,0);}
 function getCatSpent(catId){return getCatSpentInKey(catId,getMonthKey(currentDate));}
+function getNetRefunds(){return localStorage.getItem('net_refunds')==='1';}
+function setNetRefunds(v){localStorage.setItem('net_refunds',v?'1':'0');}
+
 function getTotalSpentInKey(key,visibleOnly=false){
   const hidden=visibleOnly?getHiddenCats():[];
-  return getExpensesForKey(key).filter(t=>!hidden.includes(t.catId)&&t.amount>0).reduce((s,t)=>s+t.amount,0);
+  const netRefunds=getNetRefunds();
+  return getExpensesForKey(key)
+    .filter(t=>!hidden.includes(t.catId)&&(netRefunds||t.amount>0))
+    .reduce((s,t)=>s+t.amount,0);
 }
 function getTotalSpent(){return getTotalSpentInKey(getMonthKey(currentDate),true);}
 function getTotalBudget(){const hidden=getHiddenCats();return getAllCats().filter(c=>!hidden.includes(c.id)).reduce((s,c)=>s+getCatBudget(c.id),0);}
@@ -1802,7 +1819,7 @@ function renderSavingView(){
   renderWealthCard();
   renderWealthChart();
 
-  const prevKey=getPrevMonthKey(), prevLabel=keyToLabel(prevKey);
+  const viewKey=getMonthKey(currentDate), viewLabel=keyToLabel(viewKey);
   const nicole=getNicole();
   const sharedCats=nicole.sharedCats||[];
   const e=lang==='en';
@@ -1810,7 +1827,7 @@ function renderSavingView(){
   const sharedRows=sharedCats.map(entry=>{
     const catId=entry.id, pct=entry.pct||50;
     const cat=getAllCats().find(c=>c.id===catId);
-    const spent=getCatSpentInKey(catId,prevKey);
+    const spent=getCatSpentInKey(catId,viewKey);
     const share=spent*(pct/100);
     return {catId,cat,spent,pct,share};
   });
@@ -1822,7 +1839,7 @@ function renderSavingView(){
   container.innerHTML='<div class="nicole-card">'
     +'<h3>💙 '+(nicole.name||'Nicole')+(e?'\'s Share':' — חלק')+'</h3>'
     +'<div class="nicole-amount">'+fmt(nicoleTotal)+'</div>'
-    +'<div class="nicole-month-note">'+(e?'For '+prevLabel+' (pay end of month)':'עבור '+prevLabel+' (לתשלום בסוף החודש)')+'</div>'
+    +'<div class="nicole-month-note">'+(e?'For '+viewLabel:'עבור '+viewLabel)+'</div>'
     +(sharedRows.length===0?'<div style="font-size:12px;color:var(--text-muted);margin-top:8px;">'+(e?'No categories selected yet':'לא נבחרו קטגוריות עדיין')+'</div>':'')
     +sharedRows.map(r=>{
       const pctLabel=r.pct===50?'½':(r.pct+'%');
@@ -3365,7 +3382,7 @@ function openSettingsPanel(panel){
   document.querySelectorAll('.settings-panel').forEach(p=>p.classList.remove('active'));
   if(panel==='menu') document.getElementById('settingsMenu').classList.add('active');
   else if(panel==='salary'){document.getElementById('settingsPanelSalary').classList.add('active');renderSettings();}
-  else if(panel==='catbudget'){document.getElementById('settingsPanelCatbudget').classList.add('active');renderCategorySettings();}
+  else if(panel==='catbudget'){document.getElementById('settingsPanelCatbudget').classList.add('active');renderCategorySettings();renderNetRefundsToggle();}
   else if(panel==='shared'){document.getElementById('settingsPanelShared').classList.add('active');renderSettings();}
   else if(panel==='theme'){document.getElementById('settingsPanelTheme').classList.add('active');renderThemeGrid();}
   else if(panel==='charts'){document.getElementById('settingsPanelCharts').classList.add('active');renderChartVisibilityPicker();renderChartGroupPicker();}
@@ -3563,12 +3580,16 @@ function openHelpModal(){
     +row('💡','Check insights','The Analysis tab shows smart insights based on last month — check them regularly to stay on track.')
     +row('🔄','Shared expenses','Set up shared expenses in ⚙️ → Shared With. Select which categories to split, and set the % for each one — 50% for half, 100% if they pay it all. The Saving tab calculates their total automatically based on last month\'s actual spending.')
     +row('🔁','Recurring charges','At the start of each month, the app will automatically ask you which recurring charges to duplicate. If you missed it or want to trigger it manually, go to ⚙️ → Categories & Budget and tap "Recurring Charges". Note: if you\'ve already entered charges manually this month, they may appear twice — so clear the month\'s data first if needed.')
+    +row('📄','Import bank statements','In the History tab, tap the blue 📄 button to import a credit card statement PDF. The app reads it, groups charges into "New" (needs a category), "Recognized" (auto-imported), and "Possible duplicates" (skipped). It remembers every category you choose per merchant, so next month the same merchants get categorized automatically — you\'ll only need to review genuinely new ones.')
+    +row('💸','Refunds & credits toggle','By default, refunds/cashback are logged but not subtracted from your "Spent" total — so a stock gain or a Bit refund doesn\'t make your spending look artificially low. Want refunds netted against spending instead? Toggle it in ⚙️ → Categories & Budget → "Net refunds/credits against total spent".')
   :
     row('📊','הגדר משכורת קודם','עבור לـ⚙️ ← משכורת והכנסות כדי להגדיר את המשכורת נטו שלך. זה מפעיל את סרגל התקציב, גרף שיעור החיסכון והתובנות החודשיות. כל רשומת משכורת מקבלת צבע משלה — כשאתה מוסיף משכורת חדשה, הקודמת נסגרת אוטומטית בסוף תקופתה. היסטוריית המשכורות שלך שמורה ומקודדת בצבעים בגרף ההכנסה נטו.')
     +row('🎯','קבע תקציבים','בלשונית התקציב, קבע תקציב חודשי לכל קטגוריה. הסרגל יהפוך לכתום ב-80% ולאדום בחריגה.')
     +row('💡','בדוק תובנות','לשונית הניתוח מציגה תובנות חכמות על בסיס החודש שעבר — בדוק אותן באופן קבוע כדי להישאר במסלול.')
     +row('🔄','הוצאות משותפות','הגדר הוצאות משותפות בـ⚙️ ← שיתוף עם. בחר אילו קטגוריות לחלק וקבע % לכל אחת — 50% לחצי, 100% אם הם משלמים הכל. לשונית החסכונות מחשבת את הסכום הכולל שלהם אוטומטית לפי ההוצאות בפועל של החודש שעבר.')
-    +row('🔁','תשלומים חוזרים','בתחילת כל חודש האפליקציה תשאל אותך אילו תשלומים חוזרים לשכפל. אם פספסת את החלון או רוצה להפעיל ידנית, עבור לـ⚙️ ← קטגוריות ותקציב ולחץ "תשלומים חוזרים". שים לב: אם כבר הזנת הוצאות ידנית החודש, הן עלולות להופיע פעמיים — לכן מומלץ לנקות את נתוני החודש קודם.');
+    +row('🔁','תשלומים חוזרים','בתחילת כל חודש האפליקציה תשאל אותך אילו תשלומים חוזרים לשכפל. אם פספסת את החלון או רוצה להפעיל ידנית, עבור לـ⚙️ ← קטגוריות ותקציב ולחץ "תשלומים חוזרים". שים לב: אם כבר הזנת הוצאות ידנית החודש, הן עלולות להופיע פעמיים — לכן מומלץ לנקות את נתוני החודש קודם.')
+    +row('📄','ייבוא דפי חיוב מהבנק','בלשונית ההיסטוריה, לחץ על הכפתור הכחול 📄 כדי לייבא PDF של דף חיוב כרטיס אשראי. האפליקציה קוראת אותו ומחלקת את החיובים ל"חדשות" (דורש קטגוריה), "מוכרות" (ייבוא אוטומטי) ו"כפילויות אפשריות" (מדולגות). היא זוכרת איזו קטגוריה בחרת לכל בית עסק, כך שבחודש הבא אותם בתי עסק יסווגו אוטומטית — תצטרך לבדוק רק חדשים באמת.')
+    +row('💸','מתג זיכויים והחזרים','כברירת מחדל, זיכויים/החזרים כספיים נרשמים אך אינם מנוכים מסך "הוצאתי" — כדי שרווח במניות או החזר בביט לא יגרום להוצאות להיראות נמוכות באופן מלאכותי. רוצה שהזיכויים ינוכו מההוצאות? הפעל זאת בـ⚙️ ← קטגוריות ותקציב ← "קזז זיכויים/החזרים מסך ההוצאות".');
 
   document.getElementById('helpModal').classList.add('open');
 }
@@ -4094,6 +4115,22 @@ const STATEMENT_SECTORS=[
 ];
 
 const STATEMENT_CARD_TOKENS=['לא הוצג','ה.קבע','תש.נייד','ש.אלחוט'];
+
+function toggleNetRefunds(){
+  setNetRefunds(!getNetRefunds());
+  renderNetRefundsToggle();
+  render();
+}
+
+function renderNetRefundsToggle(){
+  const isOn=getNetRefunds();
+  const toggle=document.getElementById('netRefundsToggle');
+  const knob=document.getElementById('netRefundsKnob');
+  if(!toggle||!knob)return;
+  toggle.style.background=isOn?'var(--amber)':'var(--surface2)';
+  toggle.style.border='1px solid '+(isOn?'var(--amber)':'var(--border)');
+  knob.style.left=isOn?'18px':'2px';
+}
 
 function getMerchantMap(){return ls('statement_merchant_map',{});}
 function saveMerchantMap(m){lsSet('statement_merchant_map',m);}
